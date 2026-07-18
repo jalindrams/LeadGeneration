@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Micraft Lead Calling{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h2>Calling Overview</h2>
+</div>
+
+<div class="stat-grid" id="dashboard-grid">
+    <div class="stat-box">
+        <div class="stat-value" id="val-calls">...</div>
+        <div class="stat-label">Calls Today</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value" id="val-connected">...</div>
+        <div class="stat-label">Connected</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value" id="val-interested">...</div>
+        <div class="stat-label">Interested</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value" style="color: var(--status-followup);" id="val-pending">...</div>
+        <div class="stat-label">Follow-ups Pending</div>
+    </div>
+</div>
+
+<script>
+    // Fetch stats on load
+    document.addEventListener("DOMContentLoaded", async () => {
+        try {
+            const res = await fetch("/api/calling/dashboard");
+            const data = await res.json();
+            document.getElementById("val-calls").innerText = data.total_calls_today;
+            document.getElementById("val-connected").innerText = data.connected_today;
+            document.getElementById("val-interested").innerText = data.interested_today;
+            document.getElementById("val-pending").innerText = data.follow_ups_pending;
+        } catch (e) {
+            console.error(e);
+        }
+    });
+</script>
+{% endblock %}

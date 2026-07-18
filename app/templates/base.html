@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}Micraft Pre-CRM Triage{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/calling.css">
+    <script src="/static/js/calling.js" defer></script>
+    <style>
+        .mobile-top-bar { display: none; }
+        @media (max-width: 768px) {
+            .mobile-top-bar {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 15px;
+                background: var(--bg-card);
+                border-bottom: 1px solid var(--border);
+                margin: -20px -15px 20px -15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% if current_user %}
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            🚀 Micraft Triage
+        </div>
+        <div class="sidebar-user">
+            <span class="name">{{ current_user.full_name }}</span>
+            <span class="role">{{ 'Administrator' if current_user.role == 'admin' else 'Sales Representative' }}</span>
+        </div>
+        
+        <div class="sidebar-nav">
+            <a href="/calling/" class="nav-item {% if request.url.path == '/calling/' %}active{% endif %}">
+                <span class="nav-icon">📋</span> Workboard
+            </a>
+            <a href="/calling/follow-ups" class="nav-item {% if request.url.path == '/calling/follow-ups' %}active{% endif %}">
+                <span class="nav-icon">📅</span> Follow-ups
+            </a>
+            <a href="/calling/dashboard" class="nav-item {% if request.url.path == '/calling/dashboard' %}active{% endif %}">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            
+            {% if current_user.role == 'admin' %}
+            <div style="margin: 15px 20px 5px 20px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Admin Tools</div>
+            <a href="/calling/admin" class="nav-item {% if request.url.path == '/calling/admin' %}active{% endif %}">
+                <span class="nav-icon">👑</span> Overview
+            </a>
+            <a href="/calling/admin/assign" class="nav-item {% if request.url.path == '/calling/admin/assign' %}active{% endif %}">
+                <span class="nav-icon">🎯</span> Assign
+            </a>
+            <a href="/calling/admin/users" class="nav-item {% if request.url.path == '/calling/admin/users' %}active{% endif %}">
+                <span class="nav-icon">👥</span> Team
+            </a>
+            <a href="/calling/import" class="nav-item {% if request.url.path == '/calling/import' %}active{% endif %}">
+                <span class="nav-icon">⬆️</span> Import
+            </a>
+            <a href="/calling/admin/api" class="nav-item {% if request.url.path == '/calling/admin/api' %}active{% endif %}">
+                <span class="nav-icon">🔌</span> APIs
+            </a>
+            {% endif %}
+        </div>
+        
+        <div class="sidebar-footer">
+            <a href="/logout" class="nav-item" style="color: var(--danger); padding: 0;">
+                <span class="nav-icon">🚪</span> Logout
+            </a>
+        </div>
+    </nav>
+    {% endif %}
+
+    <div class="main-content">
+        {% if current_user %}
+        <div class="mobile-top-bar">
+            <strong>🚀 Micraft Triage</strong>
+            <a href="/logout" style="color: var(--danger); font-weight: 500; font-size: 0.9rem;">Logout</a>
+        </div>
+        {% endif %}
+        
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

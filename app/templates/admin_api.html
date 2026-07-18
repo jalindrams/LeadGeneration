@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}API Integrations - Micraft Pre-CRM{% endblock %}
+
+{% block content %}
+<div class="header-actions" style="margin-bottom: 2rem;">
+    <div>
+        <h2 style="font-size: 1.75rem; margin-bottom: 4px;">API Integrations & Explorer</h2>
+        <p class="text-muted" style="margin: 0; font-size: 0.9rem;">Test and view raw data from internal API endpoints</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+    <!-- API List -->
+    <div class="chart-card">
+        <div class="chart-header" style="margin-bottom: 1rem;">
+            <div class="chart-title">Available Endpoints</div>
+        </div>
+        <div class="api-list">
+            <button class="api-btn active" data-url="/health" data-method="GET">System Health</button>
+            <button class="api-btn" data-url="/api/leads/stats" data-method="GET">Lead Statistics</button>
+            <button class="api-btn" data-url="/api/metrics/pipeline" data-method="GET">Pipeline Metrics</button>
+            <button class="api-btn" data-url="/api/metrics/summary" data-method="GET">Metrics Summary</button>
+            <button class="api-btn" data-url="/api/metrics/today" data-method="GET">Today's Metrics</button>
+            <button class="api-btn" data-url="/api/admin/users" data-method="GET">List Users</button>
+            <button class="api-btn" data-url="/api/leads?per_page=5" data-method="GET">Recent Leads (Sample)</button>
+        </div>
+    </div>
+
+    <!-- API Tester -->
+    <div class="chart-card" style="display: flex; flex-direction: column;">
+        <div class="chart-header" style="margin-bottom: 1rem;">
+            <div class="chart-title">Endpoint Runner</div>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 1rem; align-items: center;">
+            <span id="api-method" style="background: var(--primary); color: white; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.85rem;">GET</span>
+            <code id="api-url" style="flex: 1; background: var(--bg-hover); padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border-light); font-size: 0.9rem; color: var(--text-main);">/health</code>
+            <button id="btn-run-api" class="btn btn-primary">▶ Run API</button>
+        </div>
+
+        <div style="flex: 1; background: #1e1e2e; border-radius: 6px; padding: 1rem; overflow: auto; min-height: 400px; border: 1px solid var(--border-light);">
+            <pre id="api-response" style="margin: 0; color: #a6accd; font-family: 'Consolas', monospace; font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word;">Select an endpoint and click Run to see the response.</pre>
+        </div>
+    </div>
+</div>
+
+<style>
+.api-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.api-btn {
+    background: var(--bg-hover);
+    border: 1px solid var(--border-light);
+    color: var(--text-main);
+    padding: 12px 16px;
+    border-radius: 8px;
+    text-align: left;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+.api-btn:hover {
+    background: var(--border-light);
+}
+.api-btn.active {
+    border-color: var(--primary);
+    background: rgba(99,102,241,0.1);
+    color: var(--primary);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const buttons = document.querySelectorAll('.api-btn');
+    const urlDisplay = document.getElementById('api-url');
+    const methodDisplay = document.getElementById('api-method');
+    const runBtn = document.getElementById('btn-run-api');
+    const responseView = document.getElementById('api-response');
+
+    let currentUrl = '/health';
+    let currentMethod = 'GET';
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            currentUrl = btn.getAttribute('data-url');
+            currentMethod = btn.getAttribute('data-method');
+            
+            urlDisplay.textContent = currentUrl;
+            methodDisplay.textContent = currentMethod;
+        });
+    });
+
+    runBtn.addEventListener('click', async () => {
+        runBtn.disabled = true;
+        runBtn.textContent = 'Running...';
+        responseView.textContent = 'Fetching...';
+        
+        try {
+            const res = await fetch(currentUrl, { method: currentMethod });
+            const data = await res.json();
+            responseView.textContent = JSON.stringify(data, null, 4);
+        } catch (err) {
+            responseView.textContent = 'Error: ' + err.message;
+        } finally {
+            runBtn.disabled = false;
+            runBtn.textContent = '▶ Run API';
+        }
+    });
+});
+</script>
+{% endblock %}

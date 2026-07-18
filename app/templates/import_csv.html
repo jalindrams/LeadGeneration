@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Import Leads | Micraft Lead Calling{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h2>Import CSV Leads</h2>
+</div>
+
+<div class="card">
+    <p style="color: var(--text-muted); font-size: 0.9rem;">
+        Upload a CSV file containing external leads. 
+        Required columns: <b>Company Name</b>. Optional: Contact Person, Phone, Email, Location, Industry, Source.
+    </p>
+
+    <form onsubmit="handleCSVUpload(event)">
+        <div class="form-group mt-3">
+            <input type="file" id="csv_file" name="csv_file" accept=".csv" class="form-control" required style="padding: 15px;">
+        </div>
+        
+        <button type="submit" class="btn btn-block mt-3">Upload CSV</button>
+    </form>
+
+    <div id="upload-result"></div>
+</div>
+{% endblock %}

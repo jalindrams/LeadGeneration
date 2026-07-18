@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Manage Team - Micraft Pre-CRM{% endblock %}
+
+{% block content %}
+<div class="header-actions">
+    <div>
+        <h2>Team Management</h2>
+        <p class="text-muted" style="margin-top: 5px;">Manage sales representatives and administrators.</p>
+    </div>
+    <button class="btn btn-primary" onclick="openAddUserModal()">+ Add User</button>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="data-table" id="users-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="users-body">
+                <tr><td colspan="5" class="text-center">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div id="addUserModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+        <div class="flex-between" style="margin-bottom: 20px;">
+            <h3 style="margin: 0;">Add New User</h3>
+            <button class="btn btn-outline" style="padding: 5px 10px; border: none;" onclick="closeAddUserModal()">✕</button>
+        </div>
+        
+        <form id="addUserForm" onsubmit="submitAddUser(event)">
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="add-fullname" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="add-username" class="form-control" required autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="add-password" class="form-control" required autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label>Role</label>
+                <select id="add-role" class="form-control" required>
+                    <option value="sales_rep">Sales Representative</option>
+                    <option value="admin">Administrator</option>
+                </select>
+            </div>
+            
+            <div style="margin-top: 25px; display: flex; gap: 10px;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">Create User</button>
+                <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeAddUserModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+/* Modal CSS */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.modal-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 30px;
+    width: 100%;
+    max-width: 450px;
+    box-shadow: var(--shadow-lg);
+}
+</style>
+
+<script>
+async function loadUsers() {
+    try {
+        const res = await fetch('/api/admin/users');
+        const users = await res.json();
+        
+        const tbody = document.getElementById('users-body');
+        tbody.innerHTML = '';
+        
+        users.forEach(user => {
+            const tr = document.createElement('tr');
+            const created = new Date(user.created_at).toLocaleDateString();
+            const isCurrentUser = user.username === '{{ current_user.username }}';
+            
+            let actions = '';
+            if (!isCurrentUser) {
+                const actionLabel = user.is_active ? 'Deactivate' : 'Activate';
+                const actionClass = user.is_active ? 'btn-outline' : 'btn-primary';
+                actions = `<button class="btn ${actionClass}" style="padding: 6px 12px; font-size: 0.8rem;" onclick="toggleUserStatus(${user.id}, ${!user.is_active})">${actionLabel}</button>`;
+            } else {
+                actions = `<span class="text-muted" style="font-size: 0.8rem;">Current Session</span>`;
+            }
+
+            tr.innerHTML = `
+                <td>
+                    <strong>${user.full_name}</strong><br>
+                    <small class="text-muted">@${user.username}</small>
+                </td>
+                <td>
+                    <span class="badge badge-${user.role}">${user.role.replace('_', ' ')}</span>
+                </td>
+                <td>
+                    <span class="badge ${user.is_active ? 'badge-interested' : 'badge-error'}">
+                        ${user.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                </td>
+                <td>${created}</td>
+                <td>${actions}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch(e) {
+        console.error(e);
+        document.getElementById('users-body').innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--danger);">Failed to load users.</td></tr>`;
+    }
+}
+
+function openAddUserModal() { document.getElementById('addUserModal').style.display = 'flex'; }
+function closeAddUserModal() { document.getElementById('addUserModal').style.display = 'none'; document.getElementById('addUserForm').reset(); }
+
+async function submitAddUser(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+    
+    const payload = {
+        username: document.getElementById('add-username').value,
+        full_name: document.getElementById('add-fullname').value,
+        password: document.getElementById('add-password').value,
+        role: document.getElementById('add-role').value
+    };
+    
+    try {
+        const res = await fetch('/api/admin/users', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        if (res.ok) {
+            closeAddUserModal();
+            loadUsers();
+        } else {
+            const data = await res.json();
+            alert('Error: ' + data.detail);
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Failed to create user');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create User';
+    }
+}
+
+async function toggleUserStatus(userId, makeActive) {
+    if(!confirm(`Are you sure you want to ${makeActive ? 'activate' : 'deactivate'} this user?`)) return;
+    
+    try {
+        const res = await fetch(`/api/admin/users/${userId}/toggle-status`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ is_active: makeActive })
+        });
+        
+        if (res.ok) {
+            loadUsers();
+        } else {
+            const data = await res.json();
+            alert('Error: ' + data.detail);
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Failed to update status');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadUsers);
+</script>
+{% endblock %}

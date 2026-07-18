@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Lead Detail | Micraft Lead Calling{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h2><a href="/calling/">&larr;</a> Lead Details</h2>
+</div>
+
+<div class="card">
+    <div class="card-title">
+        {{ lead.company_name }}
+        <span class="badge badge-{{ lead.call_status }}">{{ lead.call_status | replace('_', ' ') }}</span>
+    </div>
+    
+    <div class="stat-grid mt-3 mb-3">
+        <div>
+            <label style="color: var(--text-muted); font-size: 0.8rem;">Contact Person</label>
+            <div>{{ lead.full_name or 'N/A' }}</div>
+        </div>
+        <div>
+            <label style="color: var(--text-muted); font-size: 0.8rem;">Phone</label>
+            <div>
+                {% if lead.phone %}
+                <a href="tel:{{ lead.phone }}">{{ lead.phone }}</a>
+                {% else %}
+                N/A
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <label style="color: var(--text-muted); font-size: 0.8rem;">Location</label>
+            <div>{{ lead.location or 'N/A' }}</div>
+        </div>
+        <div>
+            <label style="color: var(--text-muted); font-size: 0.8rem;">Source</label>
+            <div>{{ lead.source }}</div>
+        </div>
+    </div>
+</div>
+
+<h3>Log Call Update</h3>
+<div class="card">
+    <form onsubmit="updateCallStatus('{{ lead.id }}', event)">
+        <div class="form-group">
+            <label for="call_status">Call Status</label>
+            <select class="form-control" name="call_status" id="call_status" onchange="handleStatusChange()" required>
+                <option value="new" {% if lead.call_status == 'new' %}selected{% endif %}>New</option>
+                <option value="follow_up" {% if lead.call_status == 'follow_up' %}selected{% endif %}>Follow-up Needed</option>
+                <option value="interested" {% if lead.call_status == 'interested' %}selected{% endif %}>Interested</option>
+                <option value="not_interested" {% if lead.call_status == 'not_interested' %}selected{% endif %}>Not Interested</option>
+                <option value="no_answer" {% if lead.call_status == 'no_answer' %}selected{% endif %}>No Answer</option>
+                <option value="closed" {% if lead.call_status == 'closed' %}selected{% endif %}>Closed / Dead</option>
+            </select>
+        </div>
+        
+        <div class="form-group" id="follow_up_group" style="display: {% if lead.call_status == 'follow_up' %}block{% else %}none{% endif %};">
+            <label for="follow_up_date">Follow-up Date</label>
+            <input type="date" class="form-control" name="follow_up_date" id="follow_up_date" value="{{ lead.follow_up_date or '' }}">
+        </div>
+
+        <div class="form-group">
+            <label for="decision_maker">Decision Maker Name</label>
+            <input type="text" class="form-control" name="decision_maker" id="decision_maker" value="{{ lead.decision_maker or '' }}">
+        </div>
+
+        <div class="form-group">
+            <label for="pain_point">Key Pain Point</label>
+            <input type="text" class="form-control" name="pain_point" id="pain_point" value="{{ lead.pain_point or '' }}">
+        </div>
+
+        <div class="form-group">
+            <label for="duration_note">Call Duration / Type</label>
+            <input type="text" class="form-control" name="duration_note" id="duration_note" placeholder="e.g. 5 mins, Voicemail">
+        </div>
+
+        <div class="form-group">
+            <label for="remarks">Remarks / Notes</label>
+            <textarea class="form-control" name="remarks" id="remarks" rows="3">{{ lead.remarks or '' }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-block">Save Call Log</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,749 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard - Micraft Pre-CRM{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<div class="header-actions" style="margin-bottom: 2rem;">
+    <div>
+        <h2 style="font-size: 1.75rem; margin-bottom: 4px;">Command Center</h2>
+        <p class="text-muted" style="margin: 0; font-size: 0.9rem;">Real-time pipeline overview across the entire sales team</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <button class="btn btn-outline" onclick="document.getElementById('exportModal').style.display='flex'">📤 Export Leads</button>
+        <a href="/calling/admin/assign" class="btn btn-primary">🎯 Assign Leads</a>
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div id="exportModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div class="chart-card" style="width: 100%; max-width: 500px; padding: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0;">📤 Export Leads</h3>
+            <button onclick="document.getElementById('exportModal').style.display='none'" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;">&times;</button>
+        </div>
+        <form id="exportForm" action="/api/admin/export" method="GET">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-size: 0.85rem; color: var(--text-muted);">Source</label>
+                <select name="source" class="form-control" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-hover); border: 1px solid var(--border-light); color: var(--text-main);">
+                    <option value="">All Sources</option>
+                    <option value="indiamart">IndiaMART</option>
+                    <option value="google_maps">Google Maps</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-size: 0.85rem; color: var(--text-muted);">Industry (Partial Match)</label>
+                <input type="text" name="industry" class="form-control" placeholder="e.g. Automotive" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-hover); border: 1px solid var(--border-light); color: var(--text-main);">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-size: 0.85rem; color: var(--text-muted);">City</label>
+                <input type="text" name="city" class="form-control" placeholder="e.g. Pune" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-hover); border: 1px solid var(--border-light); color: var(--text-main);">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-size: 0.85rem; color: var(--text-muted);">Generated After Date</label>
+                <input type="date" name="after_date" class="form-control" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-hover); border: 1px solid var(--border-light); color: var(--text-main);">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-size: 0.85rem; color: var(--text-muted);">Assignment Status</label>
+                <select name="assigned" class="form-control" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-hover); border: 1px solid var(--border-light); color: var(--text-main);">
+                    <option value="">All Leads</option>
+                    <option value="true">Assigned Only</option>
+                    <option value="false">Unassigned Only</option>
+                </select>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('exportModal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn btn-primary">Download CSV</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Scraper Control Panel -->
+<div class="chart-card" style="margin-bottom: 2rem;">
+    <div class="chart-header">
+        <div>
+            <div class="chart-title">Start Scraper Job</div>
+            <div class="chart-subtitle">Trigger a background scraping job for IndiaMART</div>
+        </div>
+    </div>
+    <form id="scraperForm" style="display: flex; gap: 1rem; align-items: flex-end; margin-top: 1rem; flex-wrap: wrap;">
+        <div style="flex: 2; min-width: 280px;">
+            <label for="scrapeIndustry" style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Industries (Multi-select)</label>
+            <select id="scrapeIndustry" multiple required>
+                <option value="Automotive Manufacturer">Automotive</option>
+                <option value="Pharmaceutical Manufacturer">Pharmaceutical & Life Sciences</option>
+                <option value="Electronics Manufacturer">Electronics & Semiconductors</option>
+                <option value="Food Beverage Manufacturer">Food & Beverage</option>
+                <option value="Aerospace Manufacturer">Aerospace & Defense</option>
+                <option value="Machinery Manufacturer">Machinery & Equipment</option>
+                <option value="Medical Device Manufacturer">Medical Devices</option>
+                <option value="Chemical Manufacturer">Chemicals</option>
+            </select>
+        </div>
+        <div style="flex: 1.5; min-width: 200px;">
+            <label for="scrapeTurnover" style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Turnover (Multi-select)</label>
+            <select id="scrapeTurnover" multiple>
+                <option value="10-50 Crore">10-50 Crores</option>
+                <option value="50-100 Crore">50-100 Crores</option>
+                <option value="100-500 Crore">100-500 Crores</option>
+                <option value="500-1000 Crore">500-1000 Crores</option>
+                <option value="Above 1000 Crore">Above 1000 Crores</option>
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <label for="scrapeCity" style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Cities (Multi-select)</label>
+            <select id="scrapeCity" multiple required>
+                <option value="Pune" selected>Pune</option>
+                <option value="Mumbai">Mumbai</option>
+                <option value="Chennai">Chennai</option>
+                <option value="Ahmedabad">Ahmedabad</option>
+                <option value="Bengaluru">Bengaluru</option>
+                <option value="Delhi">Delhi</option>
+                <option value="Hyderabad">Hyderabad</option>
+                <option value="Kolkata">Kolkata</option>
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <label for="targetLeads" style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Target (Leads)</label>
+            <input type="number" id="targetLeads" value="50" min="1" max="1000" required class="form-control" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-light); border-radius: 6px; background: var(--bg-hover); color: var(--text-main); font-family: inherit; height: 42px;">
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary" id="btnStartScraper" style="padding: 9px 20px; height: 42px;">🚀 Start Scraping</button>
+            <button type="button" class="btn btn-outline" id="btnHaltScraper" style="padding: 9px 20px; height: 42px; display: none; color: var(--rose); border-color: var(--rose);" onclick="haltScraper()">🛑 Halt Scraping</button>
+        </div>
+    </form>
+    <div id="scrapeResult" style="margin-top: 1rem; font-size: 0.9rem; color: var(--success); display: none;"></div>
+    <!-- Scraper Progress Container -->
+    <div id="scraperProgress" style="display: none; margin-top: 1.5rem; background: var(--bg-hover); border-radius: 8px; padding: 16px; border: 1px solid var(--border-light);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="margin: 0; font-size: 1rem; color: var(--text-main);" id="progressHeader">🔄 Active Scraper Jobs</h4>
+            <span id="estimatedTime" style="font-size: 0.85rem; color: var(--text-muted);"></span>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px; color: var(--text-muted);">
+                <span id="progressText">0 / 0 Leads</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: var(--bg-card); border-radius: 4px; overflow: hidden; border: 1px solid var(--border-light);">
+                <div id="progressBar" style="height: 100%; width: 0%; background: var(--primary); transition: width 0.5s ease;"></div>
+            </div>
+        </div>
+        <div id="scraperProgressList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div id="kpi-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 2rem;">
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: rgba(99,102,241,0.15); color: #818cf8;">🏢</div>
+        <div class="kpi-body">
+            <div class="kpi-label">Total Leads</div>
+            <div class="kpi-value" id="kv-total">—</div>
+        </div>
+    </div>
+    <div class="kpi-card" style="border-color: rgba(245,158,11,0.3);">
+        <div class="kpi-icon" style="background: rgba(245,158,11,0.15); color: #fbbf24;">📥</div>
+        <div class="kpi-body">
+            <div class="kpi-label">Unassigned</div>
+            <div class="kpi-value" id="kv-unassigned" style="color: #fbbf24;">—</div>
+        </div>
+    </div>
+    <div class="kpi-card" style="border-color: rgba(16,185,129,0.3);">
+        <div class="kpi-icon" style="background: rgba(16,185,129,0.15); color: #34d399;">✅</div>
+        <div class="kpi-body">
+            <div class="kpi-label">Interested</div>
+            <div class="kpi-value" id="kv-interested" style="color: #34d399;">—</div>
+        </div>
+    </div>
+    <div class="kpi-card" style="border-color: rgba(99,102,241,0.3);">
+        <div class="kpi-icon" style="background: rgba(99,102,241,0.15); color: #a5b4fc;">👥</div>
+        <div class="kpi-body">
+            <div class="kpi-label">Active Reps</div>
+            <div class="kpi-value" id="kv-reps" style="color: #a5b4fc;">—</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
+    <!-- Lead Source Donut -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <div>
+                <div class="chart-title">Lead Sources</div>
+                <div class="chart-subtitle">Breakdown by acquisition channel</div>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <div style="position: relative; width: 180px; height: 180px; flex-shrink: 0;">
+                <canvas id="chartSource"></canvas>
+            </div>
+            <div id="sourceLegend" class="chart-legend"></div>
+        </div>
+    </div>
+
+    <!-- Call Status Donut -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <div>
+                <div class="chart-title">Call Status Distribution</div>
+                <div class="chart-subtitle">Current pipeline stage breakdown</div>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <div style="position: relative; width: 180px; height: 180px; flex-shrink: 0;">
+                <canvas id="chartStatus"></canvas>
+            </div>
+            <div id="statusLegend" class="chart-legend"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
+    <!-- Top Cities Bar -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <div>
+                <div class="chart-title">Top Lead Locations</div>
+                <div class="chart-subtitle">Cities ranked by volume</div>
+            </div>
+        </div>
+        <div style="height: 220px; position: relative;">
+            <canvas id="chartCities"></canvas>
+        </div>
+    </div>
+
+    <!-- Contact Coverage -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <div>
+                <div class="chart-title">Contact Coverage</div>
+                <div class="chart-subtitle">Data completeness</div>
+            </div>
+        </div>
+        <div style="height: 220px; position: relative;">
+            <canvas id="chartCoverage"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Sales Team Table -->
+<div class="chart-card">
+    <div class="chart-header">
+        <div>
+            <div class="chart-title">Sales Team Performance</div>
+            <div class="chart-subtitle">Rep pipeline summary</div>
+        </div>
+        <a href="/calling/admin/users" class="btn btn-outline" style="font-size: 0.8rem; padding: 6px 14px;">Manage Team →</a>
+    </div>
+    <div class="table-responsive" style="margin-top: 1rem;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Representative</th>
+                    <th>Status</th>
+                    <th>Leads Assigned</th>
+                    <th>Follow-ups</th>
+                    <th>Interested</th>
+                    <th>Conversion</th>
+                </tr>
+            </thead>
+            <tbody id="team-tbody">
+                <tr><td colspan="6" class="text-center text-muted">Loading team data...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.font.family = 'Inter, sans-serif';
+
+const PALETTE = {
+    indigo: '#6366f1',
+    violet: '#8b5cf6',
+    emerald: '#10b981',
+    amber:   '#f59e0b',
+    rose:    '#f43f5e',
+    cyan:    '#06b6d4',
+    orange:  '#f97316',
+    teal:    '#14b8a6',
+};
+const COLORS = Object.values(PALETTE);
+
+function buildDonut(canvasId, labels, values, legendEl) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{ data: values, backgroundColor: COLORS, borderWidth: 0, hoverOffset: 6 }]
+        },
+        options: {
+            cutout: '68%',
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.label}: ${c.raw.toLocaleString()}` } } },
+            animation: { animateScale: true, duration: 800 }
+        }
+    });
+
+    const total = values.reduce((a, b) => a + b, 0);
+    legendEl.innerHTML = labels.map((l, i) => `
+        <div class="legend-item">
+            <span class="legend-dot" style="background:${COLORS[i % COLORS.length]}"></span>
+            <span class="legend-text">${l}</span>
+            <span class="legend-pct">${total ? Math.round(values[i]/total*100) : 0}%</span>
+        </div>
+    `).join('');
+}
+
+function buildBar(canvasId, labels, values, color = '#6366f1') {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: COLORS.slice(0, values.length),
+                borderRadius: 6,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.raw.toLocaleString()} leads` } } },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 11 } } },
+                y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+            },
+            animation: { duration: 800 }
+        }
+    });
+}
+
+function buildRadial(canvasId, phoneVal, emailVal) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Has Phone', 'Has Email'],
+            datasets: [{
+                data: [phoneVal, emailVal],
+                backgroundColor: ['rgba(99,102,241,0.8)', 'rgba(16,185,129,0.8)'],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.raw}%` } } },
+            scales: {
+                x: { grid: { display: false } },
+                y: { max: 100, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: (v) => v + '%' } }
+            },
+            animation: { duration: 800 }
+        }
+    });
+}
+
+async function loadDashboard() {
+    const [statsRes, usersRes, unassignedRes] = await Promise.all([
+        fetch('/api/leads/stats'),
+        fetch('/api/admin/users'),
+        fetch('/api/leads?assigned_to=unassigned&per_page=1')
+    ]);
+
+    const stats = await statsRes.json();
+    const users = await usersRes.json();
+    const unassigned = await unassignedRes.json();
+
+    const reps = users.filter(u => u.role === 'sales_rep' && u.is_active);
+    const interestedCount = stats.by_call_status?.interested || 0;
+
+    document.getElementById('kv-total').textContent = (stats.total_leads || 0).toLocaleString();
+    document.getElementById('kv-unassigned').textContent = (unassigned.total || 0).toLocaleString();
+    document.getElementById('kv-interested').textContent = interestedCount.toLocaleString();
+    document.getElementById('kv-reps').textContent = reps.length;
+
+    // Source donut
+    const srcLabels = Object.keys(stats.by_source || {}).map(k => k.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()));
+    const srcValues = Object.values(stats.by_source || {});
+    if (srcLabels.length) buildDonut('chartSource', srcLabels, srcValues, document.getElementById('sourceLegend'));
+
+    // Status donut – use call_status from leads if available
+    const stLabels = Object.keys(stats.by_call_status || stats.by_status || {}).map(k => k.replace('_', ' '));
+    const stValues = Object.values(stats.by_call_status || stats.by_status || {});
+    if (stLabels.length) buildDonut('chartStatus', stLabels, stValues, document.getElementById('statusLegend'));
+
+    // Cities bar
+    const cityLabels = Object.keys(stats.top_cities || {});
+    const cityValues = Object.values(stats.top_cities || {});
+    if (cityLabels.length) buildBar('chartCities', cityLabels, cityValues);
+
+    // Coverage
+    buildRadial('chartCoverage', stats.with_phone_pct || 0, stats.with_email_pct || 0);
+
+    // Team table
+    const tbody = document.getElementById('team-tbody');
+    if (!reps.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No active sales reps yet. <a href="/calling/admin/users">Add one →</a></td></tr>`;
+        return;
+    }
+    tbody.innerHTML = reps.map(rep => `
+        <tr>
+            <td>
+                <strong>${rep.full_name}</strong><br>
+                <small class="text-muted">@${rep.username}</small>
+            </td>
+            <td><span class="badge badge-interested" style="font-size: 0.7rem;">Active</span></td>
+            <td class="text-muted" id="assigned-${rep.id}">—</td>
+            <td class="text-muted" id="fu-${rep.id}">—</td>
+            <td class="text-muted" id="int-${rep.id}">—</td>
+            <td class="text-muted" id="conv-${rep.id}">—</td>
+        </tr>
+    `).join('');
+
+    // Load per-rep stats
+    reps.forEach(async rep => {
+        const [assignedR, fuR, intR] = await Promise.all([
+            fetch(`/api/leads?assigned_to=${rep.id}&per_page=1`),
+            fetch(`/api/leads?assigned_to=${rep.id}&call_status=follow_up&per_page=1`),
+            fetch(`/api/leads?assigned_to=${rep.id}&call_status=interested&per_page=1`)
+        ]);
+        const [aData, fuData, intData] = await Promise.all([assignedR.json(), fuR.json(), intR.json()]);
+        const assignedCount = aData.total || 0;
+        const fuCount = fuData.total || 0;
+        const intCount = intData.total || 0;
+        const conv = assignedCount ? Math.round(intCount / assignedCount * 100) : 0;
+
+        document.getElementById(`assigned-${rep.id}`).textContent = assignedCount.toLocaleString();
+        document.getElementById(`fu-${rep.id}`).innerHTML = `<span style="color: var(--warning)">${fuCount}</span>`;
+        document.getElementById(`int-${rep.id}`).innerHTML = `<span style="color: var(--success)">${intCount}</span>`;
+        document.getElementById(`conv-${rep.id}`).innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="flex:1; height: 6px; background: var(--bg-hover); border-radius: 3px; overflow: hidden;">
+                    <div style="width:${conv}%; height:100%; background: var(--success); border-radius: 3px; transition: width 0.8s ease;"></div>
+                </div>
+                <span style="color: var(--success); font-size: 0.85rem; font-weight: 600;">${conv}%</span>
+            </div>`;
+    });
+}
+
+// Initialize Choices.js
+let industryChoices, turnoverChoices, cityChoices;
+document.addEventListener('DOMContentLoaded', () => {
+    loadDashboard();
+    
+    industryChoices = new Choices('#scrapeIndustry', {
+        removeItemButton: true,
+        placeholder: true,
+        placeholderValue: 'Select industries...',
+        searchPlaceholderValue: 'Search industries',
+    });
+    
+    turnoverChoices = new Choices('#scrapeTurnover', {
+        removeItemButton: true,
+        placeholder: true,
+        placeholderValue: 'Select turnover ranges...',
+        searchPlaceholderValue: 'Search turnover',
+    });
+
+    cityChoices = new Choices('#scrapeCity', {
+        removeItemButton: true,
+        placeholder: true,
+        placeholderValue: 'Select cities...',
+        searchPlaceholderValue: 'Search cities',
+    });
+});
+
+let scraperPollInterval = null;
+
+function formatTime(seconds) {
+    if (seconds < 60) return `${Math.round(seconds)}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.round(seconds % 60);
+    return `${mins}m ${secs}s`;
+}
+
+function pollScraperStatus() {
+    fetch('/api/admin/scraper-status')
+        .then(r => r.json())
+        .then(data => {
+            const progDiv = document.getElementById('scraperProgress');
+            const progList = document.getElementById('scraperProgressList');
+            const btnStart = document.getElementById('btnStartScraper');
+            const btnHalt = document.getElementById('btnHaltScraper');
+            const estTimeSpan = document.getElementById('estimatedTime');
+            const progHeader = document.getElementById('progressHeader');
+            
+            const overall = data.overall_state;
+            
+            if (overall && overall.is_running) {
+                progDiv.style.display = 'block';
+                btnStart.style.display = 'none';
+                btnHalt.style.display = 'inline-block';
+                
+                if (overall.halting) {
+                    btnHalt.innerHTML = 'Halting...';
+                    btnHalt.disabled = true;
+                } else {
+                    btnHalt.innerHTML = '🛑 Halt Scraping';
+                    btnHalt.disabled = false;
+                }
+                
+                
+                progHeader.innerHTML = `🔄 Scraping in Progress (${overall.completed_queries} / ${overall.total_queries} queries)`;
+                // Update Progress Bar
+                const targetL = overall.target_leads || 1;
+                const currentL = overall.current_leads || 0;
+                let percent = Math.round((currentL / targetL) * 100);
+                if (percent > 100) percent = 100;
+                
+                document.getElementById('progressText').textContent = `${currentL} / ${targetL} Leads`;
+                document.getElementById('progressPercent').textContent = `${percent}%`;
+                document.getElementById('progressBar').style.width = `${percent}%`;
+                
+                estTimeSpan.innerHTML = `Scanning...`;
+                
+                let activeJobsHtml = '';
+                if (overall.current_city && overall.current_query) {
+                    activeJobsHtml = `
+                        <div style="background: var(--bg-card); padding: 12px; border-radius: 6px; border: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; border-left: 3px solid var(--primary);">
+                            <div>
+                                <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-main);">CURRENTLY RUNNING</div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted);">Query: ${overall.current_query} in ${overall.current_city}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <span class="spinner" style="display:inline-block; width:12px; height:12px; border:2px solid var(--primary); border-bottom-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (data.running && data.running.length > 0) {
+                    activeJobsHtml += data.running.map(job => `
+                        <div style="background: var(--bg-card); padding: 12px; border-radius: 6px; border: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-main);">${job.source.toUpperCase()}</div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted);">${job.query}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 0.9rem; color: var(--text-main);">Found: <strong>${job.found}</strong></div>
+                                <div style="font-size: 0.9rem; color: var(--success);">Stored: <strong>${job.stored}</strong></div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else if (!activeJobsHtml) {
+                    activeJobsHtml = '<div class="text-muted" style="font-size: 0.85rem; padding: 10px;">Initializing scraper...</div>';
+                }
+                
+                progList.innerHTML = activeJobsHtml;
+                loadDashboard();
+            } else {
+                if (scraperPollInterval) {
+                    clearInterval(scraperPollInterval);
+                    scraperPollInterval = null;
+                    
+                    progDiv.style.display = 'block';
+                    btnStart.style.display = 'inline-block';
+                    btnHalt.style.display = 'none';
+                    btnStart.disabled = false;
+                    btnStart.innerHTML = '🚀 Start Scraping';
+                    
+                    if (overall && overall.halting) {
+                        progList.innerHTML = '<div style="color: var(--rose); font-weight: 600;">🛑 Scraping job halted by user!</div>';
+                    } else {
+                        progList.innerHTML = '<div style="color: var(--success); font-weight: 600;">✅ All scraping jobs completed!</div>';
+                    }
+                    
+                    setTimeout(() => { progDiv.style.display = 'none'; }, 5000);
+                    
+                    loadDashboard();
+                }
+            }
+        }).catch(err => console.error("Error polling scraper status:", err));
+}
+
+function haltScraper() {
+    const btn = document.getElementById('btnHaltScraper');
+    btn.innerHTML = 'Halting...';
+    btn.disabled = true;
+    
+    fetch('/api/admin/halt-scraper', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            console.log("Halt response:", data);
+        }).catch(err => console.error("Error halting scraper:", err));
+}
+
+// Scraper Form Handler
+document.getElementById('scraperForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const industries = Array.from(document.getElementById('scrapeIndustry').selectedOptions).map(opt => opt.value);
+    const turnovers = Array.from(document.getElementById('scrapeTurnover').selectedOptions).map(opt => opt.value);
+    const targetLeads = parseInt(document.getElementById('targetLeads').value) || 50;
+    
+    if (!industries.length) {
+        alert("Please select at least one industry.");
+        return;
+    }
+
+    const btn = document.getElementById('btnStartScraper');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="display:inline-block; width:12px; height:12px; border:2px solid #fff; border-bottom-color:transparent; border-radius:50%; animation:spin 1s linear infinite; margin-right:6px;"></span> Starting...';
+    
+    try {
+        const response = await fetch('/api/admin/start-scraper', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                source: 'indiamart',
+                industries: industries,
+                turnovers: turnovers,
+                cities: Array.from(document.getElementById('scrapeCity').selectedOptions).map(opt => opt.value),
+                target_leads: targetLeads
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const res = document.getElementById('scrapeResult');
+            res.style.display = 'block';
+            res.innerHTML = `✅ ${data.message}: <strong>${data.queries_count} queries dispatched</strong>. Estimated time: ${Math.ceil(data.estimated_minutes)} minutes.`;
+            setTimeout(() => { res.style.display = 'none'; }, 8000);
+            
+            // Start polling immediately to show UI update
+            pollScraperStatus();
+            if (!scraperPollInterval) {
+                scraperPollInterval = setInterval(pollScraperStatus, 3000);
+            }
+        } else {
+            const err = await response.json();
+            alert(`Failed to start scraper: ${err.detail || "Check console."}`);
+            btn.disabled = false;
+            btn.innerHTML = '🚀 Start Scraping';
+        }
+    } catch(err) {
+        alert("Error starting scraper.");
+        console.error(err);
+        btn.disabled = false;
+        btn.innerHTML = '🚀 Start Scraping';
+    }
+});
+
+// Check if any jobs are currently running when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/admin/scraper-status')
+        .then(r => r.json())
+        .then(data => {
+            if (data.overall_state && data.overall_state.is_running) {
+                const btn = document.getElementById('btnStartScraper');
+                btn.disabled = true;
+                btn.style.display = 'none';
+                
+                const btnHalt = document.getElementById('btnHaltScraper');
+                btnHalt.style.display = 'inline-block';
+                if (data.overall_state.halting) {
+                    btnHalt.innerHTML = 'Halting...';
+                    btnHalt.disabled = true;
+                }
+                
+                if (!scraperPollInterval) {
+                    pollScraperStatus();
+                    scraperPollInterval = setInterval(pollScraperStatus, 3000);
+                }
+            }
+        }).catch(err => console.error(err));
+});
+</script>
+
+<style>
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* Choices.js Dark Theme Overrides */
+.choices__inner {
+    background-color: var(--bg-hover) !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: 6px !important;
+    min-height: 42px !important;
+    color: var(--text-main) !important;
+}
+.choices__input {
+    background-color: transparent !important;
+    color: var(--text-main) !important;
+}
+.choices__list--dropdown {
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-light) !important;
+    color: var(--text-main) !important;
+}
+.choices__list--dropdown .choices__item--selectable.is-highlighted {
+    background-color: var(--bg-hover) !important;
+}
+.choices[data-type*="select-multiple"] .choices__button {
+    border-left: 1px solid rgba(255,255,255,0.2) !important;
+}
+.choices__item--choice {
+    color: var(--text-main) !important;
+}
+
+/* KPI Cards */
+.kpi-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.kpi-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.kpi-icon {
+    width: 50px; height: 50px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+.kpi-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 4px; }
+.kpi-value { font-size: 1.8rem; font-weight: 700; color: var(--text-main); line-height: 1; }
+
+/* Chart Cards */
+.chart-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: var(--shadow-sm);
+}
+.chart-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+.chart-title { font-size: 1rem; font-weight: 600; color: var(--text-main); }
+.chart-subtitle { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+
+/* Donut Legend */
+.chart-legend { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legend-text { color: var(--text-muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.legend-pct { color: var(--text-main); font-weight: 600; flex-shrink: 0; }
+
+@media (max-width: 768px) {
+    #kpi-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+    #kpi-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+{% endblock %}

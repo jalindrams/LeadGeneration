@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Follow-ups | Micraft Lead Calling{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h2>Action Required</h2>
+</div>
+
+<div class="lead-list">
+    {% for lead in leads %}
+    <div class="card clickable" onclick="window.location.href='/calling/lead/{{ lead.id }}'">
+        <div class="card-title">
+            {{ lead.company_name }}
+            <span class="badge badge-follow_up">
+                {{ lead.follow_up_date or 'No Date' }}
+            </span>
+        </div>
+        <div class="card-meta">
+            {{ lead.full_name or 'No Contact Name' }} 
+            {% if lead.phone %} • {{ lead.phone }}{% endif %}
+        </div>
+        <div style="font-size: 0.9rem; color: var(--text-muted);">
+            <em>"{{ lead.remarks or 'No previous remarks' }}"</em>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center mt-3" style="color: var(--text-muted);">
+        No pending follow-ups! You're all caught up.
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

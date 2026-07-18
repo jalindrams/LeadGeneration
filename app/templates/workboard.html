@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Workboard | Micraft Lead Calling{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h2>Lead Workboard</h2>
+</div>
+
+<div class="filters">
+    <a href="?call_status=new" class="filter-chip {% if current_status == 'new' %}active{% endif %}">New</a>
+    <a href="?call_status=follow_up" class="filter-chip {% if current_status == 'follow_up' %}active{% endif %}">Follow-ups</a>
+    <a href="?call_status=interested" class="filter-chip {% if current_status == 'interested' %}active{% endif %}">Interested</a>
+    <a href="?call_status=not_interested" class="filter-chip {% if current_status == 'not_interested' %}active{% endif %}">Rejected</a>
+    <a href="?call_status=all" class="filter-chip {% if current_status == 'all' %}active{% endif %}">All Leads</a>
+</div>
+
+<div class="lead-list">
+    {% for lead in leads %}
+    <div class="card clickable" onclick="window.location.href='/calling/lead/{{ lead.id }}'">
+        <div class="card-title" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem;">
+            <span>{{ lead.company_name }}</span>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                {% if current_user.role == 'admin' and lead.assignee %}
+                <span class="badge" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6;">Assigned: {{ lead.assignee.username }}</span>
+                {% endif %}
+                <span class="badge badge-{{ lead.call_status }}">{{ lead.call_status | replace('_', ' ') }}</span>
+            </div>
+        </div>
+        <div class="card-meta">
+            {{ lead.full_name or 'No Contact Name' }} • {{ lead.industry or 'Unknown Industry' }} 
+        </div>
+        {% if lead.phone %}
+        <div style="margin-top: 10px;">
+            <a href="tel:{{ lead.phone }}" class="btn btn-outline" style="padding: 6px 12px; font-size: 0.9rem;" onclick="event.stopPropagation();">
+                📞 {{ lead.phone }}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="text-center mt-3" style="color: var(--text-muted);">
+        No leads found for status "{{ current_status }}".
+    </div>
+    {% endfor %}
+</div>
+
+<div class="flex-between mt-3 mb-3">
+    {% if page > 1 %}
+    <a href="?call_status={{ current_status }}&page={{ page - 1 }}" class="btn btn-outline">Previous</a>
+    {% else %}
+    <div></div>
+    {% endif %}
+    
+    {% if leads|length == 50 %}
+    <a href="?call_status={{ current_status }}&page={{ page + 1 }}" class="btn btn-outline">Next</a>
+    {% endif %}
+</div>
+{% endblock %}

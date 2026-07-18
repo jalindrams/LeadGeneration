@@ -1,0 +1,24 @@
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app.database import SessionLocal
+from app.scrapers.google_maps import GoogleMapsScraper
+
+def fast_scrape_maps2():
+    db = SessionLocal()
+    try:
+        scraper = GoogleMapsScraper(db)
+        
+        # Monkey patch delay
+        scraper.random_delay = lambda: None
+        
+        print("Starting fast scrape maps 2...")
+        stats = scraper.run("pharmaceutical manufacturer", "Mumbai", max_pages=3)
+        print(f"Stats: {stats}")
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    fast_scrape_maps2()
