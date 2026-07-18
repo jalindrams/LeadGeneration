@@ -26,8 +26,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.database import SessionLocal
 from app.models import Lead
 
-# Sources that never had a scraper — anything from them is fabricated
-SOURCES_WITHOUT_SCRAPERS = {"linkedin", "tradeindia"}
+# Sources that never had a scraper — anything from them is fabricated.
+# NOTE: 'tradeindia' was in this list until a real scraper shipped (2026-07-19);
+# leads from it BEFORE that date remain quarantined via the template fingerprint.
+SOURCES_WITHOUT_SCRAPERS = {"linkedin"}
 
 # Word lists copied from the generator scripts (superset across all versions)
 GEN_PREFIXES = {

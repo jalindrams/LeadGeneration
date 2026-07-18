@@ -37,12 +37,22 @@ def run_source(db, source: str, product: str, city: str, queries: list[str],
         from app.scrapers.indiamart import IndiaMartScraper
         scraper = IndiaMartScraper(db, target_product=product)
         icon = "[IM]"
+    elif source == "tradeindia":
+        from app.scrapers.tradeindia import TradeIndiaScraper
+        scraper = TradeIndiaScraper(db, target_product=product)
+        icon = "[TI]"
+    elif source == "nabl":
+        from app.scrapers.nabl import NablScraper
+        scraper = NablScraper(db, target_product=product)
+        icon = "[NABL]"
     else:
         from app.scrapers.google_maps import GoogleMapsScraper
         scraper = GoogleMapsScraper(db, target_product=product)
         icon = "[GM]"
 
     total = {"found": 0, "stored": 0, "duplicate": 0, "errors": 0}
+    if source == "nabl":
+        queries = ["calibration"]  # one state-wide directory pull per city
     for query in queries:
         if remaining_target is not None and remaining_target - total["stored"] <= 0:
             break
@@ -65,7 +75,9 @@ def main():
     parser = argparse.ArgumentParser(description="Micraft Growth Engine - Campaign Scraper")
     parser.add_argument("--product", choices=list(PRODUCT_PROFILES), default=None,
                         help="Which Micraft product this campaign targets (asked interactively if omitted)")
-    parser.add_argument("--source", choices=["indiamart", "google_maps", "all"], default="all")
+    parser.add_argument("--source",
+                        choices=["indiamart", "google_maps", "tradeindia", "nabl", "all"],
+                        default="all")
     parser.add_argument("--city", default=None,
                         help="Target city, 'all' for the product's cities (default: product profile cities)")
     parser.add_argument("--query", default=None, help="Override the product's search queries")
@@ -125,7 +137,13 @@ def main():
                 break
             print(f"\n{'='*64}\nCITY: {city}\n{'='*64}")
 
-            sources = ["indiamart", "google_maps"] if args.source == "all" else [args.source]
+            if args.source == "all":
+                sources = ["indiamart", "google_maps", "tradeindia"]
+                # NABL only makes sense for calibration campaigns
+                if product_key == "calibration":
+                    sources.insert(0, "nabl")
+            else:
+                sources = [args.source]
             for src in sources:
                 remaining = None if not target else target - grand["stored"]
                 if remaining is not None and remaining <= 0:
