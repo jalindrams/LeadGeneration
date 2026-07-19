@@ -39,25 +39,36 @@ PRODUCT_PROFILES: dict[str, dict] = {
                  "Track Components, Geon Batteries — automotive-heavy.",
     },
     "dms": {
-        "name": "DMS — Dealer Management System",
-        "pitch": "Sales/service/inventory for vehicle dealers & distributors",
+        "name": "DMS — Document Management System",
+        "pitch": "Document control & digitization for compliance-bound and paper-heavy organizations",
         "search_queries": [
-            "automobile dealers", "two wheeler dealers", "car dealership",
-            "tractor dealers", "commercial vehicle dealers",
-            "auto spare parts distributor", "automobile spare parts wholesaler",
+            "ISO certified manufacturer", "pharmaceutical manufacturer",
+            "medical device manufacturer", "engineering design services",
+            "EPC company", "diagnostic laboratory", "CA firm", "law firm",
         ],
         "icp_keywords": [
-            "dealer", "dealership", "distributor", "showroom", "automobile",
-            "two wheeler", "tractor", "spare parts", "wholesaler", "motors",
+            # segment 1: compliance-bound (document control is MANDATED)
+            "iso", "iatf", "gmp", "gxp", "certified", "pharma", "pharmaceutical",
+            "medical device", "quality", "audit", "laboratory", "diagnostic",
+            "calibration", "nabl",
+            # segment 2: digitization-bound (paper-heavy operations)
+            "engineering", "design", "epc", "consultant", "chartered accountant",
+            "ca firm", "law", "legal", "advocate", "logistics", "documentation",
         ],
         "decision_makers": {
-            "senior": ["general manager", "gm", "dealer principal"],
-            "manager": ["sales manager", "service manager", "it manager", "operations manager"],
+            "senior": ["quality head", "qa head", "management representative",
+                       "admin head", "operations head", "director"],
+            "manager": ["quality manager", "document controller", "it manager",
+                        "admin manager", "office manager"],
         },
-        "turnover_band_crore": (5, 200),
-        "cities": ["Pune", "Mumbai", "Ahmedabad", "Chennai", "Nashik", "Surat"],
+        "turnover_band_crore": (2, 300),
+        "cities": ["Pune", "Mumbai", "Ahmedabad", "Chennai", "Hyderabad", "Vadodara"],
         "daily_target": 40,
-        "notes": "Dealerships cluster around highways/industrial belts; Google Maps is strong here.",
+        "notes": "Two buyer segments: (1) compliance-bound — ISO 9001/IATF/ISO 17025/GxP "
+                 "companies where document control is mandated; NABL labs + certified AIPMA "
+                 "manufacturers already in the DB are instant cross-sell pools. "
+                 "(2) digitization-bound — paper-heavy offices: engineering/EPC, diagnostics, "
+                 "CA/law firms, logistics (LR/POD paperwork).",
     },
     "tms": {
         "name": "TMS — Transport Management System",

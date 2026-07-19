@@ -47,7 +47,8 @@ def main():
     args = ap.parse_args()
 
     db = SessionLocal()
-    scraper = OemDealerScraper(db, target_product="dms", oem=args.oem)
+    # Dealer network is a parked future vertical — no target_product tag
+    scraper = OemDealerScraper(db, target_product=None, oem=args.oem)
 
     if args.smoke:
         stats = scraper.run("maharashtra", "pune", max_pages=3)

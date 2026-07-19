@@ -1,7 +1,11 @@
 """
-Micraft Growth Engine - OEM Dealer Locator Scraper (DMS source)
+Micraft Growth Engine - OEM Dealer Locator Scraper (PARKED vertical)
 
-Why this source family is gold for DMS:
+NOTE: DMS = Document Management System (not Dealer Management), so dealer
+leads carry NO target_product by default. The source stays live because the
+dealer network is a future vertical — harvested leads are kept unassigned.
+
+Why this source family is gold:
   - OEMs publish their FULL dealer network (name, address, phone) and keep it
     accurate because retail customers use it to find showrooms
   - Every entry is a real, operating, franchised dealership — zero fake listings
@@ -57,7 +61,7 @@ class OemDealerScraper(BaseScraper):
 
     SOURCE_NAME = "oem_dealers"
 
-    def __init__(self, db: Session, target_product: str = "dms", oem: str = "royal_enfield"):
+    def __init__(self, db: Session, target_product: str = None, oem: str = "royal_enfield"):
         super().__init__(db, target_product=target_product)
         if oem not in OEM_CONFIGS:
             raise KeyError(f"Unknown OEM '{oem}'. Valid: {', '.join(OEM_CONFIGS)}")
