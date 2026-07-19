@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+{% block title %}Command Deck — Micraft{% endblock %}
+
+{% block content %}
+<style>
+/* ── Command Deck styles ── */
+.cmd-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 22px; flex-wrap: wrap; gap: 10px;
+}
+.cmd-header h1 { font-size: 1.4rem; font-weight: 700; margin: 0; }
+.cmd-header-right { display: flex; align-items: center; gap: 12px; }
+.live-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: .75rem; color: #16a34a; font-weight: 600;
+}
+.live-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #16a34a;
+    animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.refresh-btn {
+    padding: 7px 14px; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 7px;
+    color: var(--text-muted); font-size: .82rem; cursor: pointer;
+}
+.refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+#last-sync { font-size: .72rem; color: var(--text-muted); }
+
+/* ── KPI bar ── */
+.kpi-bar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+    margin-bottom: 22px;
+}
+@media(max-width:1100px){ .kpi-bar { grid-template-columns: repeat(4,1fr); } }
+@media(max-width:600px){ .kpi-bar { grid-template-columns: repeat(2,1fr); } }
+.kpi {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 14px 10px;
+    text-align: center;
+}
+.kpi.highlight { border-color: var(--accent); }
+.kpi-v { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+.kpi-l { font-size: .65rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-top: 4px; }
+.kpi-s { font-size: .68rem; color: var(--text-muted); margin-top: 2px; }
+.c-blue   { color: #2563eb; } .c-green  { color: #16a34a; }
+.c-orange { color: #d97706; } .c-red    { color: #dc2626; }
+.c-purple { color: #7c3aed; }
+
+/* ── Layout grid ── */
+.deck-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+@media(max-width:1000px){ .deck-grid { grid-template-columns: 1fr; } }
+.deck-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+@media(max-width:900px){ .deck-grid-3 { grid-template-columns: 1fr; } }
+
+/* ── Card ── */
+.dcard { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.dcard-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: var(--bg); border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.dcard-head h3 { margin: 0; font-size: .88rem; font-weight: 600; }
+.dcard-head a  { font-size: .75rem; color: var(--accent); text-decoration: none; }
+.dcard-head a:hover { text-decoration: underline; }
+.dcard-body { flex: 1; overflow-y: auto; }
+.empty-msg { text-align: center; padding: 28px; color: var(--text-muted); font-size: .85rem; }
+
+/* ── Call list ── */
+.call-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    font-size: .82rem; transition: background .15s;
+}
+.call-item:last-child { border-bottom: none; }
+.call-item:hover { background: var(--bg); }
+.ci-num {
+    font-size: .7rem; font-weight: 700; color: var(--text-muted);
+    width: 18px; text-align: center; flex-shrink: 0;
+}
+.ci-info { flex: 1; min-width: 0; }
+.ci-info strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .83rem; }
+.ci-info span { color: var(--text-muted); font-size: .74rem; }
+.score-bar { width: 36px; height: 5px; border-radius: 3px; flex-shrink: 0; background: var(--border); }
+.score-fill { height: 100%; border-radius: 3px; }
+.tier-hot  { background: #ef4444; }
+.tier-warm { background: #f59e0b; }
+.tier-cold { background: #6b7280; }
+.prod-chip {
+    padding: 2px 7px; border-radius: 4px; font-size: .65rem; font-weight: 700;
+    text-transform: uppercase; white-space: nowrap; flex-shrink: 0;
+}
+.p-cal{background:#e0e7ff;color:#3730a3} .p-dms{background:#dcfce7;color:#166534}
+.p-mes{background:#fef9c3;color:#713f12} .p-tms{background:#fce7f3;color:#9d174d}
+.p-cou{background:#fee2e2;color:#991b1b} .p-eco{background:#dbeafe;color:#1e40af}
+.call-btn {
+    padding: 4px 11px; border-radius: 6px; background: #dcfce7;
+    color: #166534; border: none; font-size: .73rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0; text-decoration: none;
+    display: inline-block;
+}
+.call-btn:hover { background: #16a34a; color: #fff; }
+
+/* ── Hot alerts ── */
+.alert-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: .82rem;
+}
+.alert-item:last-child { border-bottom: none; }
+.alert-score {
+    font-size: 1rem; font-weight: 800; color: #ef4444;
+    width: 32px; text-align: center; flex-shrink: 0;
+}
+.alert-info { flex: 1; min-width: 0; }
+.alert-info strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alert-info span { color: var(--text-muted); font-size: .74rem; }
+.ch-has { font-size: .85rem; }
+.ch-no  { font-size: .85rem; opacity: .25; }
+
+/* ── Pipeline health ── */
+.health-section { padding: 14px 16px; }
+.health-section h4 { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin: 0 0 10px 0; font-weight: 600; }
+.tier-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.tier-seg { flex: 1; text-align: center; padding: 8px 4px; border-radius: 8px; font-size: .78rem; font-weight: 700; }
+.t-hot  { background: #fee2e2; color: #991b1b; }
+.t-warm { background: #fef9c3; color: #713f12; }
+.t-cold { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+.tier-seg .tv { font-size: 1.3rem; font-weight: 800; display: block; }
+
+.prod-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.prod-stat {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 7px; padding: 5px 10px; font-size: .78rem;
+}
+.prod-stat strong { font-size: .85rem; }
+
+/* ── Harvest status ── */
+.harvest-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px; border-bottom: 1px solid var(--border); font-size: .8rem;
+}
+.harvest-item:last-child { border-bottom: none; }
+.h-src { flex: 1; font-weight: 500; }
+.h-rec { font-size: .75rem; color: var(--text-muted); white-space: nowrap; }
+.h-ts  { font-size: .7rem; color: var(--text-muted); white-space: nowrap; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sd-ok      { background: #16a34a; }
+.sd-fail    { background: #dc2626; }
+.sd-run     { background: #d97706; animation: pulse 1.5s infinite; }
+.sd-never   { background: var(--border); }
+
+/* ── Outreach snapshot ── */
+.oa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.oa-cell {
+    padding: 14px 16px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+    text-align: center;
+}
+.oa-cell:nth-child(even) { border-right: none; }
+.oa-cell:nth-last-child(-n+2) { border-bottom: none; }
+.oa-v { font-size: 1.6rem; font-weight: 800; }
+.oa-l { font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-top: 3px; }
+
+/* ── Activity ── */
+.act-item {
+    display: flex; gap: 10px; padding: 9px 16px;
+    border-bottom: 1px solid var(--border); font-size: .8rem; align-items: center;
+}
+.act-item:last-child { border-bottom: none; }
+.act-out { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.act-ok { background: #16a34a; } .act-ng { background: #dc2626; }
+.act-follow { background: #d97706; } .act-other { background: var(--border); }
+</style>
+
+<div class="cmd-header">
+    <div>
+        <h1>🎯 Command Deck</h1>
+        <span style="font-size:.83rem;color:var(--text-muted)" id="today-label"></span>
+    </div>
+    <div class="cmd-header-right">
+        <div class="live-badge"><div class="live-dot"></div> Live</div>
+        <span id="last-sync"></span>
+        <button class="refresh-btn" onclick="loadDeck()">↻ Refresh</button>
+    </div>
+</div>
+
+<!-- KPI Bar -->
+<div class="kpi-bar">
+    <div class="kpi highlight"><div class="kpi-v c-blue" id="k-calls">—</div><div class="kpi-l">Calls Today</div></div>
+    <div class="kpi"><div class="kpi-v" id="k-leads-today">—</div><div class="kpi-l">Leads Added</div><div class="kpi-s">today</div></div>
+    <div class="kpi"><div class="kpi-v c-purple" id="k-leads-week">—</div><div class="kpi-l">Leads This Week</div></div>
+    <div class="kpi"><div class="kpi-v c-orange" id="k-outreach">—</div><div class="kpi-l">Outreach Sent</div><div class="kpi-s">today</div></div>
+    <div class="kpi"><div class="kpi-v c-red" id="k-hot">—</div><div class="kpi-l">Hot Leads</div><div class="kpi-s">score ≥ 70</div></div>
+    <div class="kpi"><div class="kpi-v c-blue" id="k-interested">—</div><div class="kpi-l">Interested</div></div>
+    <div class="kpi"><div class="kpi-v c-green" id="k-converted">—</div><div class="kpi-l">Converted</div></div>
+</div>
+
+<!-- Row 1: Call List + Hot Alerts -->
+<div class="deck-grid">
+    <!-- Morning Call List -->
+    <div class="dcard" style="max-height:420px">
+        <div class="dcard-head">
+            <h3>📞 Morning Call List</h3>
+            <a href="/calling/">View all leads →</a>
+        </div>
+        <div class="dcard-body" id="call-list">
+            <div class="empty-msg">Loading…</div>
+        </div>
+    </div>
+
+    <!-- Hot Alerts -->
+    <div class="dcard" style="max-height:420px">
+        <div class="dcard-head">
+            <h3>🔥 Hot Alerts <span style="font-size:.72rem;font-weight:400;color:var(--text-muted)">new this week</span></h3>
+            <a href="/calling/?call_status=new">View all →</a>
+        </div>
+        <div class="dcard-body" id="hot-list">
+            <div class="empty-msg">Loading…</div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 2: Pipeline Health + Outreach Snapshot + Harvest Status -->
+<div class="deck-grid-3">
+    <!-- Pipeline Health -->
+    <div class="dcard">
+        <div class="dcard-head"><h3>📊 Pipeline Health</h3><span id="total-leads-badge" style="font-size:.75rem;color:var(--text-muted)"></span></div>
+        <div class="dcard-body" id="pipeline-body"></div>
+    </div>
+
+    <!-- Outreach Snapshot -->
+    <div class="dcard">
+        <div class="dcard-head"><h3>📣 Outreach Snapshot</h3><a href="/calling/cadence">Cadence →</a></div>
+        <div class="dcard-body">
+            <div class="oa-grid">
+                <div class="oa-cell"><div class="oa-v c-blue" id="oa-ready">—</div><div class="oa-l">Ready to Send</div></div>
+                <div class="oa-cell"><div class="oa-v" id="oa-sent30">—</div><div class="oa-l">Sent (30d)</div></div>
+                <div class="oa-cell"><div class="oa-v" id="oa-wa">—</div><div class="oa-l">WhatsApp (30d)</div></div>
+                <div class="oa-cell"><div class="oa-v" id="oa-em">—</div><div class="oa-l">Email (30d)</div></div>
+            </div>
+            <div style="padding:12px 16px;border-top:1px solid var(--border)">
+                <a href="/calling/outreach" class="call-btn" style="display:block;text-align:center;background:var(--accent);color:#fff;padding:8px">
+                    ▶ Go to Outreach Engine
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Harvest Status -->
+    <div class="dcard">
+        <div class="dcard-head"><h3>🌾 Harvest Status</h3><span style="font-size:.72rem;color:var(--text-muted)">Last run per source</span></div>
+        <div class="dcard-body" id="harvest-list">
+            <div class="empty-msg">Loading…</div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 3: Recent Activity -->
+<div class="dcard">
+    <div class="dcard-head">
+        <h3>⚡ Recent Call Activity</h3>
+        <a href="/calling/follow-ups">Follow-ups →</a>
+    </div>
+    <div class="dcard-body" id="activity-list" style="max-height:240px;overflow-y:auto">
+        <div class="empty-msg">Loading…</div>
+    </div>
+</div>
+
+{% raw %}<script>
+const PRODUCT_LABELS = {
+    mes:'MES', dms:'DMS', tms:'TMS', courier:'Courier MS',
+    calibration:'Calibration MS', ecom:'Ecom / Shiplystic', unknown:'Unknown',
+};
+const PRODUCT_PILL = {
+    calibration:'p-cal', dms:'p-dms', mes:'p-mes',
+    tms:'p-tms', courier:'p-cou', ecom:'p-eco',
+};
+const OUTCOME_COLOR = {
+    interested: 'act-ok', not_interested: 'act-ng',
+    follow_up: 'act-follow', converted: 'act-ok',
+};
+
+// Set today label
+const now = new Date();
+document.getElementById('today-label').textContent =
+    now.toLocaleDateString('en-IN', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+
+async function loadDeck() {
+    try {
+        const r = await fetch('/api/command/deck');
+        if (!r.ok) throw new Error(await r.text());
+        const d = await r.json();
+
+        renderKPIs(d.today_stats);
+        renderCallList(d.morning_calls);
+        renderHotAlerts(d.hot_alerts);
+        renderPipeline(d.pipeline_health);
+        renderOutreach(d.outreach_snapshot);
+        renderHarvest(d.harvest_status);
+        renderActivity(d.recent_activity);
+
+        document.getElementById('last-sync').textContent =
+            'Synced ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+    } catch(e) {
+        console.error('Command deck error:', e);
+    }
+}
+
+function renderKPIs(s) {
+    document.getElementById('k-calls').textContent      = s.calls_logged_today.toLocaleString();
+    document.getElementById('k-leads-today').textContent = s.leads_added_today.toLocaleString();
+    document.getElementById('k-leads-week').textContent  = s.leads_added_week.toLocaleString();
+    document.getElementById('k-outreach').textContent    = s.outreach_sent_today.toLocaleString();
+    document.getElementById('k-hot').textContent         = s.hot_leads_total.toLocaleString();
+    document.getElementById('k-interested').textContent  = s.interested.toLocaleString();
+    document.getElementById('k-converted').textContent   = s.converted.toLocaleString();
+}
+
+function renderCallList(leads) {
+    if (!leads.length) {
+        document.getElementById('call-list').innerHTML =
+            '<div class="empty-msg">No hot/warm leads with phone numbers — all caught up!</div>';
+        return;
+    }
+    document.getElementById('call-list').innerHTML = leads.map((l, i) => {
+        const score = l.score || 0;
+        const tier  = score >= 70 ? 'hot' : score >= 40 ? 'warm' : 'cold';
+        const tierCls = 'tier-' + tier;
+        const prod = PRODUCT_LABELS[l.target_product] || l.target_product || '?';
+        const prodCls = PRODUCT_PILL[l.target_product] || '';
+        const followUpTag = l.call_status === 'follow_up'
+            ? '<span style="font-size:.65rem;color:#d97706;font-weight:700"> · FOLLOW-UP</span>' : '';
+        const followDate = l.follow_up_date
+            ? ' · ' + new Date(l.follow_up_date).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})
+            : '';
+        return `<div class="call-item">
+            <span class="ci-num">${i+1}</span>
+            <div class="ci-info">
+                <strong>${l.full_name || '—'}${followUpTag}</strong>
+                <span>${l.company_name || ''}${followDate}</span>
+            </div>
+            <span class="prod-chip ${prodCls}">${prod}</span>
+            <div class="score-bar" title="Score: ${score}">
+                <div class="score-fill ${tierCls}" style="width:${Math.min(score,100)}%"></div>
+            </div>
+            <a href="tel:${l.phone}" class="call-btn">📱 Call</a>
+            <a href="/calling/lead/${l.id}" class="call-btn" style="background:#dbeafe;color:#1e40af">View</a>
+        </div>`;
+    }).join('');
+}
+
+function renderHotAlerts(leads) {
+    if (!leads.length) {
+        document.getElementById('hot-list').innerHTML =
+            '<div class="empty-msg">No new hot leads this week.</div>';
+        return;
+    }
+    document.getElementById('hot-list').innerHTML = leads.map(l => {
+        const prod = PRODUCT_LABELS[l.target_product] || l.target_product || '?';
+        const prodCls = PRODUCT_PILL[l.target_product] || '';
+        const added = l.added
+            ? new Date(l.added).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})
+            : '';
+        return `<div class="alert-item">
+            <div class="alert-score">${l.score}</div>
+            <div class="alert-info">
+                <strong>${l.full_name || '—'}</strong>
+                <span>${l.company_name || ''} · ${added}</span>
+            </div>
+            <span class="prod-chip ${prodCls}">${prod}</span>
+            <span class="${l.phone?'ch-has':'ch-no'}" title="Phone">📱</span>
+            <span class="${l.email?'ch-has':'ch-no'}" title="Email">📧</span>
+            <a href="/calling/lead/${l.id}" class="call-btn" style="background:#dbeafe;color:#1e40af">View</a>
+        </div>`;
+    }).join('');
+}
+
+function renderPipeline(p) {
+    document.getElementById('total-leads-badge').textContent = `${p.total.toLocaleString()} total`;
+
+    const t = p.tiers;
+    const tierHtml = `
+        <div class="health-section">
+            <h4>Lead Tiers</h4>
+            <div class="tier-row">
+                <div class="tier-seg t-hot"><span class="tv">${t.hot.toLocaleString()}</span>🔥 Hot</div>
+                <div class="tier-seg t-warm"><span class="tv">${t.warm.toLocaleString()}</span>🌤 Warm</div>
+                <div class="tier-seg t-cold"><span class="tv">${t.cold.toLocaleString()}</span>❄ Cold</div>
+            </div>
+            <h4>By Product</h4>
+            <div class="prod-pills">
+                ${Object.entries(p.by_product).sort((a,b)=>b[1]-a[1]).map(([prod,cnt]) =>
+                    `<div class="prod-stat">
+                        <span class="prod-chip ${PRODUCT_PILL[prod]||''}" style="font-size:.65rem">${PRODUCT_LABELS[prod]||prod}</span>
+                        <strong>${cnt.toLocaleString()}</strong>
+                    </div>`
+                ).join('')}
+            </div>
+        </div>
+    `;
+    document.getElementById('pipeline-body').innerHTML = tierHtml;
+}
+
+function renderOutreach(o) {
+    document.getElementById('oa-ready').textContent  = (o.ready_to_contact||0).toLocaleString();
+    document.getElementById('oa-sent30').textContent = (o.sent_30d||0).toLocaleString();
+    document.getElementById('oa-wa').textContent     = (o.wa_sent_30d||0).toLocaleString();
+    document.getElementById('oa-em').textContent     = (o.email_sent_30d||0).toLocaleString();
+}
+
+const HARVEST_LABELS = {
+    nabl_labs: 'NABL Labs', aipma_members: 'AIPMA Members',
+    exhibition_pdf: 'Exhibition PDF', iba_transporters: 'IBA Transporters',
+    d2c_brands: 'D2C Brands', re_dealers: 'RE Dealers',
+};
+
+function renderHarvest(items) {
+    if (!items.length) {
+        document.getElementById('harvest-list').innerHTML = '<div class="empty-msg">No harvest jobs found.</div>';
+        return;
+    }
+    document.getElementById('harvest-list').innerHTML = items.map(h => {
+        const dotCls = h.status === 'completed' ? 'sd-ok' :
+                       h.status === 'failed'    ? 'sd-fail' :
+                       h.status === 'running'   ? 'sd-run'  : 'sd-never';
+        const label = HARVEST_LABELS[h.source] || h.source;
+        const ts = h.completed_at || h.started_at;
+        const tsStr = ts
+            ? new Date(ts).toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+            : 'never';
+        return `<div class="harvest-item">
+            <div class="status-dot ${dotCls}"></div>
+            <span class="h-src">${label}</span>
+            <span class="h-rec">${h.records > 0 ? h.records.toLocaleString() + ' recs' : ''}</span>
+            <span class="h-ts">${tsStr}</span>
+        </div>`;
+    }).join('');
+}
+
+const OUTCOME_LABELS = {
+    interested: '🙋 Interested', not_interested: '🚫 Not Interested',
+    follow_up: '🔔 Follow-up', converted: '🏆 Converted',
+    no_answer: '📵 No Answer', busy: '📵 Busy',
+};
+
+function renderActivity(acts) {
+    if (!acts.length) {
+        document.getElementById('activity-list').innerHTML =
+            '<div class="empty-msg">No call activity yet today.</div>';
+        return;
+    }
+    document.getElementById('activity-list').innerHTML = acts.map(a => {
+        const dotCls = OUTCOME_COLOR[a.outcome] || 'act-other';
+        const outLbl = OUTCOME_LABELS[a.outcome] || a.outcome || 'Logged';
+        const ts = a.created_at
+            ? new Date(a.created_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})
+            : '';
+        return `<div class="act-item">
+            <div class="act-out ${dotCls}"></div>
+            <div style="flex:1;min-width:0">
+                <span style="font-weight:600">${outLbl}</span>
+                ${a.notes ? `<span style="color:var(--text-muted)"> · ${a.notes}</span>` : ''}
+            </div>
+            <a href="/calling/lead/${a.lead_id}" style="font-size:.72rem;color:var(--accent)">View</a>
+            <span style="font-size:.7rem;color:var(--text-muted);white-space:nowrap">${ts}</span>
+        </div>`;
+    }).join('');
+}
+
+// Auto-refresh every 5 minutes
+loadDeck();
+setInterval(loadDeck, 5 * 60 * 1000);
+</script>{% endraw %}
+{% endblock %}

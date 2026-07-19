@@ -211,3 +211,11 @@ async def cadence_page(request: Request, current_user: User = Depends(require_ad
         "request": request,
         "current_user": current_user
     })
+
+@router.get("/command", response_class=HTMLResponse)
+async def command_deck_page(request: Request, current_user: User = Depends(require_admin)):
+    """Command Deck — daily ops mission control."""
+    return templates.TemplateResponse("command.html", {
+        "request": request,
+        "current_user": current_user
+    })
