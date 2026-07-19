@@ -19,8 +19,11 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql://micraft:micraft_pass@localhost:5432/micraft_leads"
 
-    # Google Maps
+    # Google Maps — FREE TIER ONLY (owner rule: never pay).
+    # Hard monthly cap on total Places API calls across the whole app;
+    # sits safely under Google's smallest per-SKU free tier (5,000/month).
     GOOGLE_MAPS_API_KEY: str = ""
+    PLACES_MONTHLY_CALL_CAP: int = 4000
 
     # Scraper Settings
     SCRAPE_DELAY_MIN: int = 3

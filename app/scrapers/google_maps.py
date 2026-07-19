@@ -2,8 +2,9 @@
 Micraft Growth Engine - Google Maps Scraper
 Uses Google Places API (Text Search + Place Details) to find manufacturers.
 
-This is a clean API-based approach — no browser scraping needed.
-Google Places API free tier: ~$200 free credit/month (28,500 calls).
+FREE TIER ONLY (owner rule): every request passes through the
+places_budget guard, which hard-stops at PLACES_MONTHLY_CALL_CAP
+(default 4,000/month — under Google's smallest per-SKU free tier).
 """
 
 import requests
@@ -12,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.scrapers.base import BaseScraper
+from app.utils import places_budget
 from app.utils.logger import get_logger
 
 log = get_logger("scraper_google_maps")
@@ -37,6 +39,10 @@ class GoogleMapsScraper(BaseScraper):
         Perform a Google Places Text Search.
         Returns raw API response dict.
         """
+        if not places_budget.allow(1, kind="text_search"):
+            log.warning("places_cap_hit_text_search_skipped", query=query)
+            return {"results": [], "status": "APP_FREE_TIER_CAP"}
+
         params = {
             "query": query,
             "key": self.api_key,
@@ -61,6 +67,10 @@ class GoogleMapsScraper(BaseScraper):
         Get detailed info for a specific place (phone, website, etc.).
         This costs 1 additional API call per place.
         """
+        if not places_budget.allow(1, kind="details"):
+            log.warning("places_cap_hit_details_skipped", place_id=place_id)
+            return None
+
         params = {
             "place_id": place_id,
             "key": self.api_key,

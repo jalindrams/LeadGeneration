@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.scrapers.base import BaseScraper
+from app.utils import places_budget
 from app.utils.logger import get_logger
 
 log = get_logger("scraper_iba")
@@ -121,6 +122,9 @@ class IbaTransportersScraper(BaseScraper):
             return self._cache[key]
 
         result = {"phone": None, "website": None, "matched_name": None}
+        if not places_budget.allow(1, kind="text_search"):
+            log.warning("places_cap_hit_lookup_skipped", name=name)
+            return result  # NOT cached: retryable next month when quota resets
         try:
             r = requests.get(TEXT_SEARCH_URL, params={
                 "query": f"{name} {city}", "key": self.api_key,
@@ -129,6 +133,9 @@ class IbaTransportersScraper(BaseScraper):
             best = next((c for c in candidates if name_match(name, c.get("name", ""))), None)
             if not best:
                 self.resolution["no_match" if candidates else "no_result"] += 1
+            elif not places_budget.allow(1, kind="details"):
+                log.warning("places_cap_hit_lookup_skipped", name=name)
+                return result
             else:
                 d = requests.get(DETAILS_URL, params={
                     "place_id": best["place_id"], "key": self.api_key,
@@ -143,6 +150,7 @@ class IbaTransportersScraper(BaseScraper):
                     self.resolution["no_result"] += 1
         except Exception as e:
             log.warning("places_lookup_error", name=name, error=str(e)[:120])
+            return result  # transient failure: NOT cached, retryable later
 
         self._cache[key] = result
         if len(self._cache) % 25 == 0:
