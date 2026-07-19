@@ -30,6 +30,9 @@ from app.utils.logger import get_logger
 
 log = get_logger("scorer")
 
+# Directory sources: the registered contact IS the verified decision-maker for that org
+DIRECTORY_SOURCES = {"nabl", "iba_transporters", "aipma"}
+
 # --- ICP industry keywords (target verticals from locked spec) ---
 ICP_INDUSTRY_KEYWORDS = [
     # Automotive parts
@@ -266,10 +269,16 @@ def score_lead(lead: dict) -> tuple[int, dict]:
     response = (lead.get("response_status") or "").lower()
     profile = _product_profile(lead)
 
+    _raw_title = lead.get("title") or lead.get("full_name_title") or ""
+    _title_pts = title_points(_raw_title, profile)
+    # Directory contacts (NABL/IBA/AIPMA) are verified org representatives — give manager credit
+    if not _title_pts and lead.get("source") in DIRECTORY_SOURCES:
+        _title_pts = 10
+
     phone_ok = has_valid_phone(lead.get("phone") or "") and response != "wrong_contact"
     breakdown = {
         "industry": industry_points(lead, profile),
-        "title": title_points(lead.get("title") or lead.get("full_name_title") or "", profile),
+        "title": _title_pts,
         "company_size": size_points(lead.get("company_size") or ""),
         "phone": 15 if phone_ok else 0,
         "email": 5 if has_valid_email(lead.get("email") or "") else 0,
@@ -308,8 +317,8 @@ def is_qualified(lead: dict) -> tuple[bool, list[str]]:
         missing.append("icp_industry")
 
     # 2. Decision-maker identified
-    if title_points(lead.get("title") or "", profile) == 0:
-        # A contact person name without a title is not a confirmed decision-maker
+    _t = title_points(lead.get("title") or "", profile)
+    if not _t and lead.get("source") not in DIRECTORY_SOURCES:
         missing.append("decision_maker")
 
     # 3. Verified contact method (phone preferred; a wrong_contact phone doesn't count)
@@ -337,6 +346,7 @@ def lead_to_dict(lead) -> dict:
         "response_status": lead.response_status,
         "turnover": lead.turnover,
         "target_product": getattr(lead, "target_product", None),
+        "source": getattr(lead, "source", None),
     }
 
 
