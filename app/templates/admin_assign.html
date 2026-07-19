@@ -17,20 +17,42 @@
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
             <div class="form-group">
+                <label>Product Campaign</label>
+                <select id="filter-product" class="form-control" onchange="updatePreview()">
+                    <option value="">Any Product</option>
+                    <option value="mes">MES</option>
+                    <option value="dms">DMS</option>
+                    <option value="tms">TMS</option>
+                    <option value="courier">Courier MS</option>
+                    <option value="calibration">Calibration MS</option>
+                    <option value="ecom">Ecommerce</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <label>Source Channel</label>
                 <select id="filter-source" class="form-control" onchange="updatePreview()">
                     <option value="">Any Source</option>
                     <option value="indiamart">IndiaMart</option>
                     <option value="google_maps">Google Maps</option>
+                    <option value="tradeindia">TradeIndia</option>
+                    <option value="nabl">NABL (labs)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>City / Location</label>
+                <input type="text" id="filter-city" class="form-control" placeholder="e.g. Mumbai" oninput="debouncePreview()">
+            </div>
+            <div class="form-group">
+                <label>Min Score (lead quality)</label>
+                <select id="filter-score" class="form-control" onchange="updatePreview()">
+                    <option value="">Any Score</option>
+                    <option value="70">🔥 Hot only (70+)</option>
+                    <option value="40">🟡 Warm+ (40+)</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>Industry</label>
                 <input type="text" id="filter-industry" class="form-control" placeholder="e.g. Manufacturing" oninput="debouncePreview()">
-            </div>
-            <div class="form-group">
-                <label>City / Location</label>
-                <input type="text" id="filter-city" class="form-control" placeholder="e.g. Mumbai" oninput="debouncePreview()">
             </div>
             <div class="form-group">
                 <label>Contact Filter</label>
@@ -40,7 +62,11 @@
                 </select>
             </div>
         </div>
-        <button class="btn" onclick="resetFilters()" style="margin-top: 5px; font-size: 0.85rem;">↺ Reset Filters</button>
+        <label style="display:flex; align-items:center; gap:8px; margin-top:12px; cursor:pointer; font-size:0.9rem;">
+            <input type="checkbox" id="filter-reassign" onchange="updatePreview()" style="width:18px; height:18px;">
+            <span>Reassign mode — also move leads already assigned to other reps</span>
+        </label>
+        <button class="btn" onclick="resetFilters()" style="margin-top: 10px; font-size: 0.85rem;">↺ Reset Filters</button>
     </div>
 
     <!-- Live Preview -->
@@ -131,15 +157,21 @@ function debouncePreview() {
 
 async function updatePreview() {
     const source   = document.getElementById('filter-source').value;
+    const product  = document.getElementById('filter-product').value;
     const industry = document.getElementById('filter-industry').value;
     const city     = document.getElementById('filter-city').value;
     const hasPhone = document.getElementById('filter-phone').value;
+    const minScore = document.getElementById('filter-score').value;
+    const reassign = document.getElementById('filter-reassign').checked;
 
-    const params = new URLSearchParams({ assigned_to: 'unassigned', per_page: 1 });
+    const params = new URLSearchParams({ per_page: 1 });
+    if (!reassign) params.append('assigned_to', 'unassigned');
     if (source)   params.append('source', source);
+    if (product)  params.append('product', product);
     if (industry) params.append('industry', industry);
     if (city)     params.append('city', city);
     if (hasPhone) params.append('has_phone', 'true');
+    if (minScore) params.append('min_score', minScore);
 
     document.getElementById('preview-count').textContent = '…';
 
@@ -205,12 +237,16 @@ async function executeAssignment() {
     btn.disabled = true;
     btn.textContent = '⏳ Assigning leads…';
 
+    const minScore = document.getElementById('filter-score').value;
     const payload = {
-        source:          document.getElementById('filter-source').value   || null,
-        industry:        document.getElementById('filter-industry').value  || null,
-        city:            document.getElementById('filter-city').value      || null,
-        has_phone:       document.getElementById('filter-phone').value === 'true' ? true : null,
-        target_rep_ids:  reps
+        source:           document.getElementById('filter-source').value   || null,
+        product:          document.getElementById('filter-product').value  || null,
+        industry:         document.getElementById('filter-industry').value  || null,
+        city:             document.getElementById('filter-city').value      || null,
+        has_phone:        document.getElementById('filter-phone').value === 'true' ? true : null,
+        min_score:        minScore ? parseInt(minScore) : null,
+        include_assigned: document.getElementById('filter-reassign').checked,
+        target_rep_ids:   reps
     };
 
     try {
@@ -238,9 +274,12 @@ async function executeAssignment() {
 
 function resetFilters() {
     document.getElementById('filter-source').value   = '';
+    document.getElementById('filter-product').value  = '';
     document.getElementById('filter-industry').value = '';
     document.getElementById('filter-city').value     = '';
     document.getElementById('filter-phone').value    = '';
+    document.getElementById('filter-score').value    = '';
+    document.getElementById('filter-reassign').checked = false;
     document.querySelectorAll('.rep-chip').forEach(c => {
         c.querySelector('input').checked = false;
         c.classList.remove('selected');

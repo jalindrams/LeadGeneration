@@ -30,6 +30,8 @@ def list_leads(
     status: Optional[str] = None,
     city: Optional[str] = None,
     industry: Optional[str] = None,
+    product: Optional[str] = None,
+    min_score: Optional[int] = None,
     has_phone: Optional[bool] = None,
     has_email: Optional[bool] = None,
     assigned_to: Optional[str] = None,
@@ -54,6 +56,10 @@ def list_leads(
         query = query.filter(Lead.location.ilike(f"%{city}%"))
     if industry:
         query = query.filter(Lead.industry.ilike(f"%{industry}%"))
+    if product:
+        query = query.filter(Lead.target_product == product)
+    if min_score is not None:
+        query = query.filter(Lead.score >= min_score)
     if has_phone is True:
         query = query.filter(Lead.phone.isnot(None), Lead.phone != "")
     if has_email is True:

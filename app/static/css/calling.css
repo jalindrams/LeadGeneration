@@ -26,6 +26,26 @@
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+
+  /* --- Design tokens: spacing (8pt grid) --- */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px; --space-16: 64px;
+
+  /* --- Radius --- */
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-xl: 20px; --radius-full: 999px;
+
+  /* --- Motion --- */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 0.15s; --dur: 0.25s;
+
+  /* --- Touch ergonomics (WCAG 44px min) --- */
+  --tap: 48px;
+  --tier-hot: #ef4444; --tier-warm: #f59e0b; --tier-cold: #60a5fa;
+
+  /* Safe-area (notched phones) */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 body {
@@ -118,10 +138,15 @@ h1, h2, h3, h4 { margin-top: 0; font-weight: 600; letter-spacing: -0.02em; }
 
 .main-content {
   flex: 1;
+  min-width: 0;              /* let flex child shrink instead of overflowing */
   margin-left: 250px;
   padding: 30px;
   max-width: 1200px;
+  box-sizing: border-box;
 }
+body { overflow-x: hidden; }
+.call-hero .phone-big { overflow-wrap: anywhere; }
+.card { overflow-wrap: anywhere; }        /* long emails/URLs wrap, never overflow */
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
@@ -385,3 +410,114 @@ h1, h2, h3, h4 { margin-top: 0; font-weight: 600; letter-spacing: -0.02em; }
 .rec-maintain { color: #60a5fa; font-weight: 600; }
 .rec-reduce { color: #f59e0b; font-weight: 600; }
 .rec-kill { color: #ef4444; font-weight: 700; }
+
+/* ============================================================
+   DESIGN SYSTEM v2 — Mobile-first cold-calling components
+   ============================================================ */
+
+/* Button size + intent variants (all >= 44px tap target) */
+.btn { min-height: 44px; border-radius: var(--radius-sm); }
+.btn-lg { min-height: var(--tap); padding: 14px 24px; font-size: 1rem; border-radius: var(--radius-md); }
+.btn-block { width: 100%; }
+.btn-success { background: var(--success); color: #fff; border: none; }
+.btn-success:hover { filter: brightness(1.08); }
+.btn-danger { background: var(--danger); color: #fff; border: none; }
+.btn-danger:hover { filter: brightness(1.08); }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+.btn-ghost:hover { background: var(--bg-hover); }
+
+/* The big call button — impossible to miss, thumb-sized */
+.btn-call {
+  min-height: 60px;
+  width: 100%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: 1.25rem;
+  font-weight: 700;
+  gap: 10px;
+  box-shadow: 0 6px 20px -4px rgba(16, 185, 129, 0.5);
+  letter-spacing: 0.01em;
+}
+.btn-call:hover { transform: translateY(-2px); box-shadow: 0 10px 28px -4px rgba(16, 185, 129, 0.6); }
+.btn-call:active { transform: translateY(0); }
+
+/* Call hero — company + person + huge dialable number */
+.call-hero { text-align: center; padding: var(--space-4) 0 var(--space-2); }
+.call-hero .company { font-size: 1.4rem; font-weight: 700; line-height: 1.2; }
+.call-hero .person { color: var(--text-muted); margin-top: var(--space-1); font-size: 1rem; }
+.call-hero .person strong { color: var(--primary); }
+.call-hero .phone-big {
+  display: block; font-size: 2rem; font-weight: 800; letter-spacing: 0.02em;
+  margin: var(--space-4) 0 var(--space-2); color: var(--text-main);
+}
+
+/* Quick-outcome grid — one tap logs the call, no typing needed */
+.quick-actions {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+.quick-action {
+  min-height: 64px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; border-radius: var(--radius-md); cursor: pointer; font-weight: 600;
+  font-size: 0.95rem; border: 1.5px solid var(--border); background: var(--bg-card);
+  color: var(--text-main); transition: all var(--dur-fast) var(--ease);
+  font-family: inherit;
+}
+.quick-action .qa-icon { font-size: 1.5rem; line-height: 1; }
+.quick-action:active { transform: scale(0.97); }
+.quick-action.qa-interested:hover, .quick-action.qa-interested.sel { border-color: var(--success); background: var(--success-bg); color: var(--success); }
+.quick-action.qa-followup:hover, .quick-action.qa-followup.sel { border-color: var(--warning); background: var(--warning-bg); color: var(--warning); }
+.quick-action.qa-noanswer:hover, .quick-action.qa-noanswer.sel { border-color: var(--tier-cold); background: rgba(96,165,250,0.12); color: var(--tier-cold); }
+.quick-action.qa-not_interested:hover, .quick-action.qa-not_interested.sel,
+.quick-action.qa-wrong:hover, .quick-action.qa-wrong.sel { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
+
+/* Sticky bottom action bar (sits above the mobile nav, in the thumb zone) */
+.sticky-actions {
+  position: sticky; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(180deg, transparent, var(--bg-dark) 22%);
+  padding: var(--space-4) 0 calc(var(--space-2) + var(--safe-bottom));
+  margin-top: var(--space-4); z-index: 40;
+}
+
+/* Larger, horizontally-scrollable filter chips for mobile thumbs */
+.filters.scroll-x {
+  flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px; scrollbar-width: none;
+}
+.filters.scroll-x::-webkit-scrollbar { display: none; }
+.filters.scroll-x .filter-chip { white-space: nowrap; flex: 0 0 auto; }
+
+/* Section label */
+.section-label {
+  font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); font-weight: 700; margin: var(--space-5) 0 var(--space-2);
+}
+
+/* Queue progress meter for reps */
+.progress-track { height: 8px; background: var(--bg-hover); border-radius: var(--radius-full); overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), #818cf8); border-radius: var(--radius-full); transition: width var(--dur) var(--ease); }
+
+/* Mobile fine-tuning */
+@media (max-width: 768px) {
+  .filter-chip { padding: 9px 16px; font-size: 0.9rem; min-height: 40px; display: inline-flex; align-items: center; }
+  .card { padding: var(--space-4); border-radius: var(--radius-md); }
+  .call-hero .phone-big { font-size: 1.75rem; }
+  h2 { font-size: 1.4rem; }
+  h3 { font-size: 1.1rem; }
+  /* Give the sticky bar clearance above the 65px bottom nav */
+  .sticky-actions { bottom: 65px; }
+}
+
+/* Toast for one-tap confirmations */
+.toast {
+  position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(20px);
+  background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main);
+  padding: 12px 20px; border-radius: var(--radius-full); box-shadow: var(--shadow-lg);
+  font-weight: 600; font-size: 0.9rem; opacity: 0; pointer-events: none;
+  transition: all var(--dur) var(--ease); z-index: 200;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.success { border-color: var(--success); color: var(--success); }

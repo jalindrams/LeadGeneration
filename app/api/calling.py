@@ -9,11 +9,12 @@ from uuid import UUID
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File
+from pydantic import BaseModel as _BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 
 from app.database import get_db
-from app.models import Lead, CallLog, User
+from app.models import Lead, CallLog, User, LeadFeedback, LeadAssignment
 from app.schemas import CallLogCreate, CallLogResponse, CallUpdateRequest, DashboardStats, LeadResponse
 from app.auth import require_auth
 
@@ -71,7 +72,37 @@ def update_lead_call(
         lead.remarks = request.remarks
     
     lead.call_count += 1
-    
+
+    # --- Wire into the Sales Feedback Loop (Module 2) ---
+    # Map the calling UI's status to a canonical response_status.
+    CALL_TO_RESPONSE = {
+        "interested": "interested",
+        "not_interested": "not_interested",
+        "no_answer": "no_response",
+        "closed": "wrong_contact",   # "closed / dead" usually means bad contact
+        "follow_up": None,           # still in play; don't set a terminal response
+        "new": None,
+    }
+    canonical = CALL_TO_RESPONSE.get(request.call_status)
+    now = datetime.utcnow()
+    if canonical:
+        lead.response_status = canonical
+        db.add(LeadFeedback(lead_id=lead.id, status=canonical,
+                            notes=request.remarks, created_at=now))
+        lead.feedback_count = (lead.feedback_count or 0) + 1
+    if not lead.first_contacted_at:
+        lead.first_contacted_at = now
+    lead.last_contacted_at = now
+    lead.outreach_status = "contacted"
+    lead.last_outreach_channel = "call"
+
+    # Rescore so bad numbers sink and interested leads rise
+    from app.processing.scorer import score_and_qualify
+    evaluation = score_and_qualify(lead)
+    lead.score = evaluation["score"]
+    if evaluation["qualified"] and lead.status in ("raw", "enriched"):
+        lead.status = "qualified"
+
     # Create call log entry
     call_log = CallLog(
         lead_id=lead.id,
@@ -81,12 +112,58 @@ def update_lead_call(
         remarks=request.remarks,
         called_by=current_user.full_name
     )
-    
+
     db.add(call_log)
     db.commit()
     db.refresh(call_log)
-    
+
     return call_log
+
+
+# --- Lead transfer (rep -> rep) + quick one-tap logging ---
+
+class TransferRequest(_BaseModel):
+    to_user_id: int
+    note: Optional[str] = None
+
+
+@router.post("/leads/{lead_id}/transfer")
+def transfer_lead(
+    lead_id: UUID,
+    payload: TransferRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_auth),
+):
+    """Hand a lead to another rep. Reps can transfer their own leads; admin any."""
+    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(404, "Lead not found")
+    if current_user.role != "admin" and lead.assigned_to != current_user.id:
+        raise HTTPException(403, "You can only transfer leads assigned to you")
+
+    target = db.query(User).filter(User.id == payload.to_user_id,
+                                   User.is_active == True).first()
+    if not target:
+        raise HTTPException(404, "Target rep not found or inactive")
+
+    lead.assigned_to = target.id
+    lead.assigned_at = datetime.utcnow()
+    db.add(LeadAssignment(lead_id=lead.id, assigned_to=target.id,
+                          assigned_by=current_user.id))
+    note = f"Transferred to {target.full_name} by {current_user.full_name}"
+    if payload.note:
+        note += f": {payload.note}"
+    lead.remarks = ((lead.remarks or "") + f"\n{note}").strip()
+    db.commit()
+    return {"ok": True, "assigned_to": target.full_name}
+
+
+@router.get("/reps")
+def list_reps(db: Session = Depends(get_db), current_user: User = Depends(require_auth)):
+    """Active users a lead can be transferred to (for the transfer picker)."""
+    reps = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
+    return [{"id": u.id, "full_name": u.full_name, "role": u.role}
+            for u in reps if u.id != current_user.id]
 
 @router.get("/follow-ups", response_model=list[LeadResponse])
 def get_follow_ups(db: Session = Depends(get_db)):
@@ -153,7 +230,6 @@ async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
 
 # --- Human Intelligence Queue (Module 4) ---
 
-from pydantic import BaseModel as _BaseModel
 from app.models import ManualReviewQueue
 
 

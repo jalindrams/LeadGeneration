@@ -1,113 +1,181 @@
 {% extends "base.html" %}
 
-{% block title %}Lead Detail | Micraft Lead Calling{% endblock %}
+{% block title %}{{ lead.company_name }} | Micraft Calling{% endblock %}
 
 {% block content %}
-<div class="header">
-    <h2><a href="/calling/">&larr;</a> Lead Details</h2>
+<div class="header" style="display:flex; align-items:center; gap:10px;">
+    <a href="/calling/" class="btn btn-ghost" style="padding:8px 14px;">&larr;</a>
+    <h2 style="margin:0; font-size:1.2rem;">Call</h2>
 </div>
 
+<!-- CALL HERO -->
 <div class="card">
-    <div class="card-title" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-        <span style="display: flex; align-items: center; gap: 0.6rem;">
-            <span class="score-pill {{ tier }}">{{ lead.score or 0 }}</span>
-            {{ lead.company_name }}
-        </span>
-        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+        <span class="score-pill {{ tier }}" title="Lead score">{{ lead.score or 0 }}</span>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
             {% if lead.target_product %}<span class="badge badge-product">{{ lead.target_product }}</span>{% endif %}
             <span class="badge badge-{{ tier }}">{{ tier }}</span>
             <span class="badge badge-{{ lead.call_status }}">{{ lead.call_status | replace('_', ' ') }}</span>
         </div>
     </div>
 
-    <div class="stat-grid mt-3 mb-3">
-        <div>
-            <label style="color: var(--text-muted); font-size: 0.8rem;">Contact Person</label>
-            <div>{{ lead.full_name or 'N/A' }}{% if lead.title %} — <strong>{{ lead.title }}</strong>{% endif %}</div>
+    <div class="call-hero">
+        <div class="company">{{ lead.company_name }}</div>
+        <div class="person">
+            {% if lead.full_name %}{{ lead.full_name }}{% if lead.title %} — <strong>{{ lead.title }}</strong>{% endif %}
+            {% else %}<span style="color:var(--warning);">No decision-maker yet</span>{% endif %}
         </div>
-        <div>
-            <label style="color: var(--text-muted); font-size: 0.8rem;">Phone</label>
-            <div>
-                {% if lead.phone %}
-                <a href="tel:{{ lead.phone }}">{{ lead.phone }}</a>
-                {% if lead.response_status == 'wrong_contact' %}<span class="badge badge-error">wrong number</span>{% endif %}
-                {% else %}
-                N/A
-                {% endif %}
-            </div>
-        </div>
-        <div>
-            <label style="color: var(--text-muted); font-size: 0.8rem;">Email</label>
-            <div>{% if lead.email %}<a href="mailto:{{ lead.email }}">{{ lead.email }}</a>{% else %}N/A{% endif %}</div>
-        </div>
-        <div>
-            <label style="color: var(--text-muted); font-size: 0.8rem;">Location</label>
-            <div>{{ lead.location or 'N/A' }}</div>
-        </div>
-        <div>
-            <label style="color: var(--text-muted); font-size: 0.8rem;">Source</label>
-            <div>{{ lead.source }}{% if lead.company_url %} • <a href="{{ lead.company_url }}" target="_blank">website</a>{% endif %}</div>
-        </div>
-        <div>
-            <label style="color: var(--text-muted); font-size: 0.8rem;">Products / Industry</label>
-            <div>{{ lead.product_category or lead.industry or 'N/A' }}</div>
-        </div>
-        {% if lead.turnover %}
-        <div>
-            <label style="color: var(--text-muted); font-size: 0.8rem;">Turnover</label>
-            <div>{{ lead.turnover }}</div>
-        </div>
+        {% if lead.location %}<div class="person" style="font-size:0.85rem;">📍 {{ lead.location }}</div>{% endif %}
+
+        {% if lead.phone %}
+        <span class="phone-big">{{ lead.phone }}</span>
+        <a href="tel:{{ lead.phone }}" class="btn btn-call" id="callBtn">📞 Call Now</a>
+        {% if lead.response_status == 'wrong_contact' %}
+        <div style="margin-top:8px;"><span class="badge badge-error">Previously flagged wrong number</span></div>
         {% endif %}
-        {% if lead.gst_number %}
-        <div>
-            <label style="color: var(--text-muted); font-size: 0.8rem;">GST</label>
-            <div>{{ lead.gst_number }}</div>
-        </div>
+        {% else %}
+        <div style="color:var(--warning); margin:16px 0;">No phone number on file</div>
+        {% endif %}
+
+        {% if lead.email %}
+        <a href="mailto:{{ lead.email }}" class="btn btn-ghost btn-block" style="margin-top:10px;">✉️ {{ lead.email }}</a>
         {% endif %}
     </div>
 </div>
 
-<h3>Log Call Update</h3>
-<div class="card">
-    <form onsubmit="updateCallStatus('{{ lead.id }}', event)">
-        <div class="form-group">
-            <label for="call_status">Call Status</label>
-            <select class="form-control" name="call_status" id="call_status" onchange="handleStatusChange()" required>
-                <option value="new" {% if lead.call_status == 'new' %}selected{% endif %}>New</option>
-                <option value="follow_up" {% if lead.call_status == 'follow_up' %}selected{% endif %}>Follow-up Needed</option>
-                <option value="interested" {% if lead.call_status == 'interested' %}selected{% endif %}>Interested</option>
-                <option value="not_interested" {% if lead.call_status == 'not_interested' %}selected{% endif %}>Not Interested</option>
-                <option value="no_answer" {% if lead.call_status == 'no_answer' %}selected{% endif %}>No Answer</option>
-                <option value="closed" {% if lead.call_status == 'closed' %}selected{% endif %}>Closed / Dead</option>
-            </select>
-        </div>
-        
-        <div class="form-group" id="follow_up_group" style="display: {% if lead.call_status == 'follow_up' %}block{% else %}none{% endif %};">
-            <label for="follow_up_date">Follow-up Date</label>
-            <input type="date" class="form-control" name="follow_up_date" id="follow_up_date" value="{{ lead.follow_up_date or '' }}">
-        </div>
-
-        <div class="form-group">
-            <label for="decision_maker">Decision Maker Name</label>
-            <input type="text" class="form-control" name="decision_maker" id="decision_maker" value="{{ lead.decision_maker or '' }}">
-        </div>
-
-        <div class="form-group">
-            <label for="pain_point">Key Pain Point</label>
-            <input type="text" class="form-control" name="pain_point" id="pain_point" value="{{ lead.pain_point or '' }}">
-        </div>
-
-        <div class="form-group">
-            <label for="duration_note">Call Duration / Type</label>
-            <input type="text" class="form-control" name="duration_note" id="duration_note" placeholder="e.g. 5 mins, Voicemail">
-        </div>
-
-        <div class="form-group">
-            <label for="remarks">Remarks / Notes</label>
-            <textarea class="form-control" name="remarks" id="remarks" rows="3">{{ lead.remarks or '' }}</textarea>
-        </div>
-
-        <button type="submit" class="btn btn-block">Save Call Log</button>
-    </form>
+<!-- QUICK OUTCOME: one tap logs the call -->
+<div class="section-label">After the call — tap the outcome</div>
+<div class="quick-actions" id="quickActions">
+    <button class="quick-action qa-interested" data-status="interested">
+        <span class="qa-icon">🔥</span> Interested
+    </button>
+    <button class="quick-action qa-followup" data-status="follow_up">
+        <span class="qa-icon">📅</span> Follow-up
+    </button>
+    <button class="quick-action qa-noanswer" data-status="no_answer">
+        <span class="qa-icon">📵</span> No Answer
+    </button>
+    <button class="quick-action qa-not_interested" data-status="not_interested">
+        <span class="qa-icon">🚫</span> Not Interested
+    </button>
+    <button class="quick-action qa-wrong" data-status="closed" style="grid-column: span 2;">
+        <span class="qa-icon">❌</span> Wrong Number / Dead
+    </button>
 </div>
+
+<!-- Contextual extras: appear only when relevant -->
+<div id="followupWrap" class="form-group" style="display:none; margin-top:16px;">
+    <label for="follow_up_date">Follow-up date</label>
+    <input type="date" class="form-control" id="follow_up_date" value="{{ lead.follow_up_date or '' }}">
+</div>
+
+<div class="form-group" style="margin-top:12px;">
+    <label for="remarks">Quick note (optional)</label>
+    <textarea class="form-control" id="remarks" rows="2" placeholder="What did they say?">{{ lead.remarks or '' }}</textarea>
+</div>
+
+<div id="dmWrap" class="form-group" style="display:none;">
+    <label for="decision_maker">Decision-maker name (if you learned it)</label>
+    <input type="text" class="form-control" id="decision_maker" value="{{ lead.decision_maker or '' }}" placeholder="Name — Plant/IT Manager, Owner…">
+</div>
+
+<!-- Sticky save + transfer, in the thumb zone -->
+<div class="sticky-actions">
+    <button class="btn btn-primary btn-lg btn-block" id="saveBtn" onclick="saveOutcome('{{ lead.id }}')">Save Call Log</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openTransfer()">↪ Transfer to another rep</button>
+</div>
+
+<!-- Transfer sheet -->
+<div id="transferSheet" class="card" style="display:none; margin-top:16px;">
+    <div class="section-label" style="margin-top:0;">Transfer this lead</div>
+    <select class="form-control" id="transferTo"><option value="">Loading reps…</option></select>
+    <input type="text" class="form-control" id="transferNote" placeholder="Note (optional)" style="margin-top:10px;">
+    <div style="display:flex; gap:10px; margin-top:12px;">
+        <button class="btn btn-primary btn-block" onclick="doTransfer('{{ lead.id }}')">Transfer</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('transferSheet').style.display='none'">Cancel</button>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let selectedStatus = "{{ lead.call_status }}";
+
+function showToast(msg, ok = true) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.className = "toast show" + (ok ? " success" : "");
+    setTimeout(() => t.className = "toast", 1800);
+}
+
+// Quick-action selection reveals only the fields that matter for that outcome
+document.querySelectorAll(".quick-action").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".quick-action").forEach(b => b.classList.remove("sel"));
+        btn.classList.add("sel");
+        selectedStatus = btn.dataset.status;
+        document.getElementById("followupWrap").style.display = selectedStatus === "follow_up" ? "block" : "none";
+        document.getElementById("dmWrap").style.display = selectedStatus === "interested" ? "block" : "none";
+    });
+});
+
+async function saveOutcome(leadId) {
+    const btn = document.getElementById("saveBtn");
+    btn.disabled = true; btn.textContent = "Saving…";
+    const payload = {
+        call_status: selectedStatus,
+        remarks: document.getElementById("remarks").value || null,
+        decision_maker: document.getElementById("decision_maker")?.value || null,
+        follow_up_date: (selectedStatus === "follow_up" ? document.getElementById("follow_up_date").value : null) || null,
+        duration_note: null,
+        response_type: null
+    };
+    try {
+        const res = await fetch(`/api/calling/leads/${leadId}/update-call`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            showToast("✅ Call logged");
+            setTimeout(() => window.location.href = "/calling/", 900);
+        } else {
+            showToast("Failed to save", false);
+            btn.disabled = false; btn.textContent = "Save Call Log";
+        }
+    } catch (e) {
+        showToast("Network error", false);
+        btn.disabled = false; btn.textContent = "Save Call Log";
+    }
+}
+
+async function openTransfer() {
+    const sheet = document.getElementById("transferSheet");
+    sheet.style.display = "block";
+    sheet.scrollIntoView({ behavior: "smooth" });
+    try {
+        const reps = await (await fetch("/api/calling/reps")).json();
+        const sel = document.getElementById("transferTo");
+        sel.innerHTML = reps.map(r => `<option value="${r.id}">${r.full_name} (${r.role})</option>`).join("")
+            || '<option value="">No other reps</option>';
+    } catch (e) { showToast("Could not load reps", false); }
+}
+
+async function doTransfer(leadId) {
+    const toId = document.getElementById("transferTo").value;
+    if (!toId) { showToast("Pick a rep", false); return; }
+    try {
+        const res = await fetch(`/api/calling/leads/${leadId}/transfer`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ to_user_id: parseInt(toId), note: document.getElementById("transferNote").value || null })
+        });
+        if (res.ok) {
+            const d = await res.json();
+            showToast(`↪ Transferred to ${d.assigned_to}`);
+            setTimeout(() => window.location.href = "/calling/", 1000);
+        } else { showToast("Transfer failed", false); }
+    } catch (e) { showToast("Network error", false); }
+}
+</script>
 {% endblock %}

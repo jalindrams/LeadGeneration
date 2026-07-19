@@ -50,7 +50,10 @@ class BulkAssignCriteria(BaseModel):
     source: Optional[str] = None
     industry: Optional[str] = None
     city: Optional[str] = None
+    product: Optional[str] = None          # target_product filter
     has_phone: Optional[bool] = None
+    min_score: Optional[int] = None        # only assign leads at/above this score
+    include_assigned: Optional[bool] = False  # True = reassign already-assigned too
     target_rep_ids: List[int]
 
 @router.post("/users/{user_id}/toggle-status")
@@ -95,45 +98,49 @@ def assign_leads_bulk(criteria: BulkAssignCriteria, db: Session = Depends(get_db
     if not criteria.target_rep_ids:
         raise HTTPException(status_code=400, detail="No target reps selected")
         
-    # Verify reps exist
-    reps = db.query(User).filter(User.id.in_(criteria.target_rep_ids), User.role == "sales_rep").all()
+    # Verify reps exist (admins can also self-assign for important leads)
+    reps = db.query(User).filter(User.id.in_(criteria.target_rep_ids),
+                                 User.is_active == True).all()
     if len(reps) != len(criteria.target_rep_ids):
         raise HTTPException(status_code=400, detail="One or more selected reps are invalid")
-        
-    query = db.query(Lead).filter(Lead.assigned_to.is_(None),
-                                  Lead.status != "synthetic")
-    
+
+    query = db.query(Lead).filter(Lead.status != "synthetic")
+    # Reassign mode includes already-assigned leads; default = only unassigned
+    if not criteria.include_assigned:
+        query = query.filter(Lead.assigned_to.is_(None))
+
     if criteria.source:
         query = query.filter(Lead.source == criteria.source)
+    if criteria.product:
+        query = query.filter(Lead.target_product == criteria.product)
     if criteria.industry:
         query = query.filter(Lead.industry.ilike(f"%{criteria.industry}%"))
     if criteria.city:
         query = query.filter(Lead.location.ilike(f"%{criteria.city}%"))
     if criteria.has_phone:
         query = query.filter(Lead.phone.isnot(None), Lead.phone != "")
-        
-    unassigned_leads = query.all()
-    
-    if not unassigned_leads:
+    if criteria.min_score is not None:
+        query = query.filter(Lead.score >= criteria.min_score)
+
+    # Best leads first so they're distributed evenly by quality
+    leads = query.order_by(Lead.score.desc()).all()
+
+    if not leads:
         return {"message": "No leads found matching criteria", "assigned_count": 0}
-        
+
     rep_count = len(reps)
-    for i, lead in enumerate(unassigned_leads):
+    for i, lead in enumerate(leads):
         rep = reps[i % rep_count]
         lead.assigned_to = rep.id
         lead.assigned_at = func.now()
-        
-        log_assignment = LeadAssignment(
-            lead_id=lead.id,
-            assigned_to=rep.id,
-            assigned_by=current_user.id
-        )
-        db.add(log_assignment)
-        
+        db.add(LeadAssignment(lead_id=lead.id, assigned_to=rep.id,
+                              assigned_by=current_user.id))
+
     db.commit()
+    verb = "Reassigned" if criteria.include_assigned else "Assigned"
     return {
-        "message": f"Successfully assigned {len(unassigned_leads)} leads across {rep_count} reps.", 
-        "assigned_count": len(unassigned_leads)
+        "message": f"{verb} {len(leads)} leads across {rep_count} rep(s), highest-score first.",
+        "assigned_count": len(leads)
     }
 
 @router.get("/export")
