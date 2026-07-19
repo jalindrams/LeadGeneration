@@ -231,7 +231,7 @@
     </div>
 </div>
 
-<script>
+{% raw %}<script>
 /* ─── Tab switching ─── */
 function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['campaigns','templates','log'][i] === name));
@@ -455,5 +455,5 @@ function escapeHtml(s) {
 
 // Init
 loadStats();
-</script>
+</script>{% endraw %}
 {% endblock %}
