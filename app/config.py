@@ -65,6 +65,18 @@ class Settings(BaseSettings):
     # HubSpot CRM sync — leave blank to disable
     HUBSPOT_API_KEY: str = ""        # Private App token (pat-...)
 
+    # WhatsApp Business Cloud API (Meta) — leave blank to disable
+    WHATSAPP_ACCESS_TOKEN: str = ""       # System User permanent token
+    WHATSAPP_PHONE_NUMBER_ID: str = ""    # from Meta API Setup page
+
+    # Outreach email identity (defaults to SMTP_USER)
+    OUTREACH_FROM_NAME: str = "Micraft Solutions"
+    OUTREACH_FROM_EMAIL: str = ""
+
+    # Cadence settings
+    OUTREACH_DAILY_LIMIT: int = 50        # max sends per day per run
+    OUTREACH_COOLDOWN_DAYS: int = 3       # min days between touches
+
     @property
     def cities_list(self) -> list[str]:
         return [c.strip() for c in self.TARGET_CITIES.split(",") if c.strip()]

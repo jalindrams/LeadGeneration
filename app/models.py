@@ -291,3 +291,33 @@ class LeadAssignment(Base):
         Index("idx_assignment_user", "assigned_to"),
     )
 
+
+# ---------------------------------------------------------------------------
+# 10. OUTREACH LOG - Every WhatsApp / email touch recorded here
+# ---------------------------------------------------------------------------
+class OutreachLog(Base):
+    __tablename__ = "outreach_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"),
+                     nullable=False)
+    channel = Column(String(20))           # whatsapp, email
+    template_key = Column(String(100))     # e.g. calibration_intro
+    message_preview = Column(String(200))  # first 200 chars of message
+    status = Column(String(20), default="queued")  # queued, sent, delivered, read, failed, responded
+    wa_message_id = Column(String(100))    # from Meta API response
+    error = Column(Text)
+    sent_at = Column(DateTime)
+    delivered_at = Column(DateTime)
+    read_at = Column(DateTime)
+    responded_at = Column(DateTime)
+    created_at = Column(DateTime, default=func.now())
+
+    lead = relationship("Lead", backref="outreach_logs")
+
+    __table_args__ = (
+        Index("idx_outreach_lead", "lead_id"),
+        Index("idx_outreach_status", "status"),
+        Index("idx_outreach_sent", "sent_at"),
+    )
+
