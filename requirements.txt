@@ -1,4 +1,5 @@
-# Micraft Growth Engine - Phase 1 Dependencies
+# Micraft Growth Engine — production dependencies (web server only)
+# Scraper-only packages (playwright, pandas, pdfplumber) are in requirements-scrape.txt
 
 # Web Framework
 fastapi==0.115.0
@@ -12,14 +13,15 @@ sqlalchemy==2.0.35
 psycopg2-binary==2.9.11
 alembic==1.13.2
 
-# Scraping
-playwright==1.48.0
+# HTTP
 requests==2.32.3
-beautifulsoup4==4.12.3
+httpx==0.27.2
 
-# Data Processing
+# Data / Dedup
 rapidfuzz==3.9.7
-pandas==2.2.3
+
+# Auth
+bcrypt==4.2.1
 
 # Configuration
 python-dotenv==1.0.1
@@ -30,8 +32,3 @@ structlog==24.4.0
 
 # Utilities
 uuid6==2024.7.10
-httpx==0.27.2
-bcrypt==4.2.1
-
-# PDF parsing (exhibition exhibitor list extraction)
-pdfplumber==0.11.4
