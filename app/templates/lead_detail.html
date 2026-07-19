@@ -8,25 +8,37 @@
 </div>
 
 <div class="card">
-    <div class="card-title">
-        {{ lead.company_name }}
-        <span class="badge badge-{{ lead.call_status }}">{{ lead.call_status | replace('_', ' ') }}</span>
+    <div class="card-title" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+        <span style="display: flex; align-items: center; gap: 0.6rem;">
+            <span class="score-pill {{ tier }}">{{ lead.score or 0 }}</span>
+            {{ lead.company_name }}
+        </span>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            {% if lead.target_product %}<span class="badge badge-product">{{ lead.target_product }}</span>{% endif %}
+            <span class="badge badge-{{ tier }}">{{ tier }}</span>
+            <span class="badge badge-{{ lead.call_status }}">{{ lead.call_status | replace('_', ' ') }}</span>
+        </div>
     </div>
-    
+
     <div class="stat-grid mt-3 mb-3">
         <div>
             <label style="color: var(--text-muted); font-size: 0.8rem;">Contact Person</label>
-            <div>{{ lead.full_name or 'N/A' }}</div>
+            <div>{{ lead.full_name or 'N/A' }}{% if lead.title %} — <strong>{{ lead.title }}</strong>{% endif %}</div>
         </div>
         <div>
             <label style="color: var(--text-muted); font-size: 0.8rem;">Phone</label>
             <div>
                 {% if lead.phone %}
                 <a href="tel:{{ lead.phone }}">{{ lead.phone }}</a>
+                {% if lead.response_status == 'wrong_contact' %}<span class="badge badge-error">wrong number</span>{% endif %}
                 {% else %}
                 N/A
                 {% endif %}
             </div>
+        </div>
+        <div>
+            <label style="color: var(--text-muted); font-size: 0.8rem;">Email</label>
+            <div>{% if lead.email %}<a href="mailto:{{ lead.email }}">{{ lead.email }}</a>{% else %}N/A{% endif %}</div>
         </div>
         <div>
             <label style="color: var(--text-muted); font-size: 0.8rem;">Location</label>
@@ -34,8 +46,24 @@
         </div>
         <div>
             <label style="color: var(--text-muted); font-size: 0.8rem;">Source</label>
-            <div>{{ lead.source }}</div>
+            <div>{{ lead.source }}{% if lead.company_url %} • <a href="{{ lead.company_url }}" target="_blank">website</a>{% endif %}</div>
         </div>
+        <div>
+            <label style="color: var(--text-muted); font-size: 0.8rem;">Products / Industry</label>
+            <div>{{ lead.product_category or lead.industry or 'N/A' }}</div>
+        </div>
+        {% if lead.turnover %}
+        <div>
+            <label style="color: var(--text-muted); font-size: 0.8rem;">Turnover</label>
+            <div>{{ lead.turnover }}</div>
+        </div>
+        {% endif %}
+        {% if lead.gst_number %}
+        <div>
+            <label style="color: var(--text-muted); font-size: 0.8rem;">GST</label>
+            <div>{{ lead.gst_number }}</div>
+        </div>
+        {% endif %}
     </div>
 </div>
 

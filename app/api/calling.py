@@ -149,3 +149,50 @@ async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
         "skipped": duplicate_count,
         "message": f"Successfully imported {imported_count} leads. Skipped {duplicate_count} duplicates."
     }
+
+
+# --- Human Intelligence Queue (Module 4) ---
+
+from pydantic import BaseModel as _BaseModel
+from app.models import ManualReviewQueue
+
+
+class ReviewResolveRequest(_BaseModel):
+    status: str  # resolved | skipped | in_progress
+    notes: Optional[str] = None
+
+
+@router.post("/review/{item_id}/resolve")
+def resolve_review_item(
+    item_id: int,
+    payload: ReviewResolveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_auth),
+):
+    """Mark a manual-review queue item resolved/skipped (rescores the lead)."""
+    if payload.status not in ("resolved", "skipped", "in_progress"):
+        raise HTTPException(400, "status must be resolved, skipped or in_progress")
+
+    item = db.query(ManualReviewQueue).filter(ManualReviewQueue.id == item_id).first()
+    if not item:
+        raise HTTPException(404, "queue item not found")
+
+    item.status = payload.status
+    if payload.notes:
+        item.notes = ((item.notes or "") + f"\n[{current_user.full_name}] {payload.notes}").strip()
+    if payload.status in ("resolved", "skipped"):
+        item.resolved_at = datetime.utcnow()
+
+    # Rescore the lead — the researcher may have just filled title/phone/email
+    lead = db.query(Lead).filter(Lead.id == item.lead_id).first()
+    result = None
+    if lead:
+        from app.processing.scorer import score_and_qualify
+        evaluation = score_and_qualify(lead)
+        lead.score = evaluation["score"]
+        if evaluation["qualified"] and lead.status in ("raw", "enriched"):
+            lead.status = "qualified"
+        result = {"score": lead.score, "qualified": evaluation["qualified"]}
+
+    db.commit()
+    return {"ok": True, "item_status": item.status, "lead": result}

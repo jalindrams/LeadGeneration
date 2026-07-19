@@ -100,7 +100,8 @@ def assign_leads_bulk(criteria: BulkAssignCriteria, db: Session = Depends(get_db
     if len(reps) != len(criteria.target_rep_ids):
         raise HTTPException(status_code=400, detail="One or more selected reps are invalid")
         
-    query = db.query(Lead).filter(Lead.assigned_to.is_(None))
+    query = db.query(Lead).filter(Lead.assigned_to.is_(None),
+                                  Lead.status != "synthetic")
     
     if criteria.source:
         query = query.filter(Lead.source == criteria.source)
@@ -146,7 +147,7 @@ def export_leads(
     current_user: User = Depends(require_admin)
 ):
     """Export leads as CSV with optional filters"""
-    query = db.query(Lead)
+    query = db.query(Lead).filter(Lead.status != "synthetic")
     if source:
         query = query.filter(Lead.source == source)
     if industry:

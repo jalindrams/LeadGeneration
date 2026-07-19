@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Review Queue | Micraft Lead Calling{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h2>🧠 Human Intelligence Queue</h2>
+</div>
+<p style="color: var(--text-muted); margin-bottom: 1rem;">
+    Good companies where automation couldn't confirm a decision-maker.
+    Find the Owner / Plant Manager / IT Manager, fill it on the lead, then mark resolved.
+</p>
+
+<div class="filters">
+    <a href="?status=pending" class="filter-chip {% if current_status == 'pending' %}active{% endif %}">Pending</a>
+    <a href="?status=in_progress" class="filter-chip {% if current_status == 'in_progress' %}active{% endif %}">In Progress</a>
+    <a href="?status=resolved" class="filter-chip {% if current_status == 'resolved' %}active{% endif %}">Resolved</a>
+    <a href="?status=all" class="filter-chip {% if current_status == 'all' %}active{% endif %}">All</a>
+</div>
+
+<div class="lead-list">
+    {% for item in items %}
+    <div class="card priority-{{ item.priority }}" id="queue-item-{{ item.id }}">
+        <div class="card-title" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <span class="clickable" onclick="window.location.href='/calling/lead/{{ item.lead.id }}'">
+                {{ item.lead.company_name }}
+            </span>
+            <div style="display: flex; gap: 0.5rem;">
+                <span class="badge badge-{{ 'hot' if item.priority == 'high' else 'warm' if item.priority == 'medium' else 'cold' }}">{{ item.priority }}</span>
+                <span class="badge badge-new">{{ item.reason | replace('_', ' ') }}</span>
+            </div>
+        </div>
+        <div class="card-meta">
+            Score {{ item.lead.score or 0 }} • {{ item.lead.location or 'Unknown location' }}
+            {% if item.lead.company_url %} •
+            <a href="{{ item.lead.company_url }}" target="_blank" onclick="event.stopPropagation();">🌐 website</a>
+            {% endif %}
+            {% if item.lead.phone %} • 📞 {{ item.lead.phone }}{% endif %}
+        </div>
+        {% if item.notes %}
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 6px;">{{ item.notes }}</div>
+        {% endif %}
+        {% if item.status in ('pending', 'in_progress') %}
+        <div style="margin-top: 10px; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <a href="/calling/lead/{{ item.lead.id }}" class="btn btn-outline" style="padding: 6px 12px; font-size: 0.85rem;">Open Lead</a>
+            <button class="btn btn-outline" style="padding: 6px 12px; font-size: 0.85rem;"
+                    onclick="resolveQueueItem({{ item.id }}, 'resolved')">✅ Resolved</button>
+            <button class="btn btn-outline" style="padding: 6px 12px; font-size: 0.85rem;"
+                    onclick="resolveQueueItem({{ item.id }}, 'skipped')">⏭ Skip</button>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="text-center mt-3" style="color: var(--text-muted);">
+        Queue is empty for "{{ current_status }}" — nothing needs manual research. 🎉
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+async function resolveQueueItem(itemId, status) {
+    try {
+        const res = await fetch(`/api/calling/review/${itemId}/resolve`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: status })
+        });
+        if (res.ok) {
+            const card = document.getElementById(`queue-item-${itemId}`);
+            card.style.opacity = "0.35";
+            card.querySelectorAll("button").forEach(b => b.disabled = true);
+        } else {
+            alert("Failed to update queue item");
+        }
+    } catch (e) { alert("Network error"); }
+}
+</script>
+{% endblock %}

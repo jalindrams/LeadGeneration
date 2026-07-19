@@ -26,7 +26,34 @@
     </div>
 </div>
 
+<div class="header mt-3">
+    <h3>⚡ Speed to Lead (7 days)</h3>
+</div>
+<div class="card">
+    <table class="data-table" id="speed-table">
+        <thead><tr><th>Tier</th><th>Contacted</th><th>Avg Time</th><th>Target</th><th>Within Target</th></tr></thead>
+        <tbody><tr><td colspan="5" style="color: var(--text-muted);">Loading…</td></tr></tbody>
+    </table>
+</div>
+
+<div class="header mt-3">
+    <h3>📡 Source Performance (last computed)</h3>
+</div>
+<div class="card">
+    <table class="data-table" id="source-table">
+        <thead><tr><th>Source</th><th>Raw</th><th>Qualified</th><th>Contacted</th><th>Score</th><th>Action</th></tr></thead>
+        <tbody><tr><td colspan="6" style="color: var(--text-muted);">Loading…</td></tr></tbody>
+    </table>
+</div>
+
 <script>
+    function fmtMinutes(m) {
+        if (m === null || m === undefined) return "—";
+        if (m < 60) return Math.round(m) + " min";
+        if (m < 1440) return (m / 60).toFixed(1) + " h";
+        return (m / 1440).toFixed(1) + " d";
+    }
+
     // Fetch stats on load
     document.addEventListener("DOMContentLoaded", async () => {
         try {
@@ -38,6 +65,37 @@
             document.getElementById("val-pending").innerText = data.follow_ups_pending;
         } catch (e) {
             console.error(e);
+        }
+
+        try {
+            const res = await fetch("/api/metrics/speed-to-lead?days=7");
+            const data = await res.json();
+            const rows = ["hot", "warm", "cold"].map(t => {
+                const d = data.tiers[t] || {};
+                const pct = d.within_target_pct === null || d.within_target_pct === undefined ? "—" : d.within_target_pct + "%";
+                return `<tr><td><span class="badge badge-${t}">${t}</span></td>` +
+                       `<td>${d.contacted ?? 0}</td><td>${fmtMinutes(d.avg_minutes)}</td>` +
+                       `<td>${fmtMinutes(d.target_minutes)}</td><td>${pct}</td></tr>`;
+            }).join("");
+            document.querySelector("#speed-table tbody").innerHTML = rows;
+        } catch (e) {
+            document.querySelector("#speed-table tbody").innerHTML =
+                '<tr><td colspan="5" style="color: var(--text-muted);">No data yet</td></tr>';
+        }
+
+        try {
+            const res = await fetch("/api/metrics/source-performance");
+            const data = await res.json();
+            if (!data.length) throw new Error("empty");
+            const rows = data.slice(0, 8).map(r =>
+                `<tr><td>${r.source}</td><td>${r.total_raw}</td><td>${r.qualified}</td>` +
+                `<td>${r.contacted}</td><td>${r.source_score}</td>` +
+                `<td class="rec-${r.recommendation}">${(r.recommendation || "").toUpperCase()}</td></tr>`
+            ).join("");
+            document.querySelector("#source-table tbody").innerHTML = rows;
+        } catch (e) {
+            document.querySelector("#source-table tbody").innerHTML =
+                '<tr><td colspan="6" style="color: var(--text-muted);">Run scripts/compute_source_performance.py to populate</td></tr>';
         }
     });
 </script>

@@ -9,38 +9,53 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 
 from app.database import get_db
-from app.models import Lead, User
+from app.models import Lead, User, ManualReviewQueue
+from app.products import PRODUCT_PROFILES
 from app.auth import require_auth, require_admin
 
 router = APIRouter(prefix="/calling", tags=["Pages"])
 templates = Jinja2Templates(directory="app/templates")
 
+
+def tier_of(score) -> str:
+    s = score or 0
+    return "hot" if s >= 70 else "warm" if s >= 40 else "cold"
+
+
 @router.get("/", response_class=HTMLResponse)
 async def calling_workboard(
-    request: Request, 
-    call_status: str = "new", 
+    request: Request,
+    call_status: str = "new",
+    product: str = "all",
     page: int = 1,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_auth)
 ):
-    """Lead Workboard UI."""
+    """Lead Workboard UI — best leads first (score desc)."""
     per_page = 50
     offset = (page - 1) * per_page
-    query = db.query(Lead)
-    
+    query = db.query(Lead).filter(Lead.status != "synthetic")
+
     # Filter by assigned rep, unless admin
     if current_user.role != "admin":
         query = query.filter(Lead.assigned_to == current_user.id)
-        
+
     if call_status and call_status != "all":
         query = query.filter(Lead.call_status == call_status)
-        
-    leads = query.order_by(Lead.lead_created_at.desc()).offset(offset).limit(per_page).all()
-    
+
+    if product and product != "all":
+        query = query.filter(Lead.target_product == product)
+
+    leads = (query.order_by(Lead.score.desc(), Lead.lead_created_at.desc())
+             .offset(offset).limit(per_page).all())
+
     return templates.TemplateResponse("workboard.html", {
-        "request": request, 
+        "request": request,
         "leads": leads,
         "current_status": call_status,
+        "current_product": product,
+        "products": PRODUCT_PROFILES,
+        "tier_of": tier_of,
         "page": page,
         "current_user": current_user
     })
@@ -64,6 +79,7 @@ async def lead_detail(
     return templates.TemplateResponse("lead_detail.html", {
         "request": request,
         "lead": lead,
+        "tier": tier_of(lead.score),
         "current_user": current_user
     })
 
@@ -74,8 +90,9 @@ async def follow_ups_page(
     current_user: User = Depends(require_auth)
 ):
     """Follow-up System UI."""
-    query = db.query(Lead).filter(Lead.call_status == "follow_up")
-    
+    query = db.query(Lead).filter(Lead.call_status == "follow_up",
+                                  Lead.status != "synthetic")
+
     if current_user.role != "admin":
         query = query.filter(Lead.assigned_to == current_user.id)
         
@@ -105,6 +122,34 @@ async def import_csv_page(request: Request, current_user: User = Depends(require
         "request": request,
         "current_user": current_user
     })
+
+@router.get("/review-queue", response_class=HTMLResponse)
+async def review_queue_page(
+    request: Request,
+    status: str = "pending",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_auth)
+):
+    """Human Intelligence Queue — leads needing manual research (Module 4)."""
+    query = (
+        db.query(ManualReviewQueue)
+        .join(Lead, ManualReviewQueue.lead_id == Lead.id)
+        .filter(Lead.status != "synthetic")
+    )
+    if status != "all":
+        query = query.filter(ManualReviewQueue.status == status)
+
+    priority_order = {"high": 0, "medium": 1, "low": 2}
+    items = query.order_by(ManualReviewQueue.created_at.asc()).limit(200).all()
+    items.sort(key=lambda i: priority_order.get(i.priority, 3))
+
+    return templates.TemplateResponse("review_queue.html", {
+        "request": request,
+        "items": items,
+        "current_status": status,
+        "current_user": current_user,
+    })
+
 
 # --- Admin Pages ---
 

@@ -8,19 +8,34 @@
 </div>
 
 <div class="filters">
-    <a href="?call_status=new" class="filter-chip {% if current_status == 'new' %}active{% endif %}">New</a>
-    <a href="?call_status=follow_up" class="filter-chip {% if current_status == 'follow_up' %}active{% endif %}">Follow-ups</a>
-    <a href="?call_status=interested" class="filter-chip {% if current_status == 'interested' %}active{% endif %}">Interested</a>
-    <a href="?call_status=not_interested" class="filter-chip {% if current_status == 'not_interested' %}active{% endif %}">Rejected</a>
-    <a href="?call_status=all" class="filter-chip {% if current_status == 'all' %}active{% endif %}">All Leads</a>
+    <a href="?call_status=new&product={{ current_product }}" class="filter-chip {% if current_status == 'new' %}active{% endif %}">New</a>
+    <a href="?call_status=follow_up&product={{ current_product }}" class="filter-chip {% if current_status == 'follow_up' %}active{% endif %}">Follow-ups</a>
+    <a href="?call_status=interested&product={{ current_product }}" class="filter-chip {% if current_status == 'interested' %}active{% endif %}">Interested</a>
+    <a href="?call_status=not_interested&product={{ current_product }}" class="filter-chip {% if current_status == 'not_interested' %}active{% endif %}">Rejected</a>
+    <a href="?call_status=all&product={{ current_product }}" class="filter-chip {% if current_status == 'all' %}active{% endif %}">All Leads</a>
+</div>
+
+<div class="filters" style="margin-top: 6px;">
+    <a href="?call_status={{ current_status }}&product=all" class="filter-chip {% if current_product == 'all' %}active{% endif %}">All Products</a>
+    {% for key, p in products.items() %}
+    <a href="?call_status={{ current_status }}&product={{ key }}" class="filter-chip {% if current_product == key %}active{% endif %}">{{ key | upper }}</a>
+    {% endfor %}
 </div>
 
 <div class="lead-list">
     {% for lead in leads %}
+    {% set tier = tier_of(lead.score) %}
     <div class="card clickable" onclick="window.location.href='/calling/lead/{{ lead.id }}'">
         <div class="card-title" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem;">
-            <span>{{ lead.company_name }}</span>
+            <span style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="score-pill {{ tier }}">{{ lead.score or 0 }}</span>
+                {{ lead.company_name }}
+            </span>
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                {% if lead.target_product %}
+                <span class="badge badge-product">{{ lead.target_product }}</span>
+                {% endif %}
+                <span class="badge badge-{{ tier }}">{{ tier }}</span>
                 {% if current_user.role == 'admin' and lead.assignee %}
                 <span class="badge" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6;">Assigned: {{ lead.assignee.username }}</span>
                 {% endif %}
@@ -28,32 +43,39 @@
             </div>
         </div>
         <div class="card-meta">
-            {{ lead.full_name or 'No Contact Name' }} • {{ lead.industry or 'Unknown Industry' }} 
+            {% if lead.full_name %}{{ lead.full_name }}{% if lead.title %} — <strong>{{ lead.title }}</strong>{% endif %}{% else %}No Contact Name{% endif %}
+            • {{ lead.industry or 'Unknown Industry' }}
+            {% if lead.location %} • {{ lead.location.split(',')[0] }}{% endif %}
         </div>
-        {% if lead.phone %}
-        <div style="margin-top: 10px;">
+        <div style="margin-top: 10px; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            {% if lead.phone %}
             <a href="tel:{{ lead.phone }}" class="btn btn-outline" style="padding: 6px 12px; font-size: 0.9rem;" onclick="event.stopPropagation();">
                 📞 {{ lead.phone }}
             </a>
+            {% endif %}
+            {% if lead.email %}
+            <a href="mailto:{{ lead.email }}" class="btn btn-outline" style="padding: 6px 12px; font-size: 0.9rem;" onclick="event.stopPropagation();">
+                ✉️ {{ lead.email }}
+            </a>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
     {% else %}
     <div class="text-center mt-3" style="color: var(--text-muted);">
-        No leads found for status "{{ current_status }}".
+        No leads found for this filter.
     </div>
     {% endfor %}
 </div>
 
 <div class="flex-between mt-3 mb-3">
     {% if page > 1 %}
-    <a href="?call_status={{ current_status }}&page={{ page - 1 }}" class="btn btn-outline">Previous</a>
+    <a href="?call_status={{ current_status }}&product={{ current_product }}&page={{ page - 1 }}" class="btn btn-outline">Previous</a>
     {% else %}
     <div></div>
     {% endif %}
-    
+
     {% if leads|length == 50 %}
-    <a href="?call_status={{ current_status }}&page={{ page + 1 }}" class="btn btn-outline">Next</a>
+    <a href="?call_status={{ current_status }}&product={{ current_product }}&page={{ page + 1 }}" class="btn btn-outline">Next</a>
     {% endif %}
 </div>
 {% endblock %}

@@ -41,7 +41,7 @@ def list_leads(
     """
     List leads with filtering, search, and pagination.
     """
-    query = db.query(Lead)
+    query = db.query(Lead).filter(Lead.status != "synthetic")
 
     # Apply filters
     if source:
@@ -95,28 +95,33 @@ def list_leads(
 @router.get("/stats")
 def lead_stats(db: Session = Depends(get_db)):
     """Get summary statistics for all leads."""
-    total = db.query(Lead).count()
+    real = db.query(Lead).filter(Lead.status != "synthetic")
+    total = real.count()
     by_source = dict(
         db.query(Lead.source, func.count(Lead.id))
+        .filter(Lead.status != "synthetic")
         .group_by(Lead.source)
         .all()
     )
     by_status = dict(
         db.query(Lead.status, func.count(Lead.id))
+        .filter(Lead.status != "synthetic")
         .group_by(Lead.status)
         .all()
     )
     by_city = dict(
         db.query(Lead.location, func.count(Lead.id))
+        .filter(Lead.status != "synthetic")
         .group_by(Lead.location)
         .order_by(desc(func.count(Lead.id)))
         .limit(10)
         .all()
     )
-    with_phone = db.query(Lead).filter(Lead.phone.isnot(None), Lead.phone != "").count()
-    with_email = db.query(Lead).filter(Lead.email.isnot(None), Lead.email != "").count()
+    with_phone = real.filter(Lead.phone.isnot(None), Lead.phone != "").count()
+    with_email = real.filter(Lead.email.isnot(None), Lead.email != "").count()
     by_call_status = dict(
         db.query(Lead.call_status, func.count(Lead.id))
+        .filter(Lead.status != "synthetic")
         .group_by(Lead.call_status)
         .all()
     )
@@ -156,7 +161,7 @@ def export_csv(
     Export leads as CSV file for sales team.
     Filters same as list endpoint.
     """
-    query = db.query(Lead)
+    query = db.query(Lead).filter(Lead.status != "synthetic")
 
     if source:
         query = query.filter(Lead.source == source)
