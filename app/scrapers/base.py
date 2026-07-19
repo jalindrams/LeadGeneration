@@ -175,7 +175,16 @@ class BaseScraper(ABC):
         )
 
         self.db.add(lead)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except Exception as e:
+            # One bad row (oversize value, unique collision, encoding) must
+            # never poison the session and kill the whole harvest.
+            self.db.rollback()
+            self.stats["errors"] += 1
+            log.error("lead_commit_failed", company=lead_data.get("company_name"),
+                      error=str(e)[:200])
+            return False, None
 
         self.stats["stored"] += 1
 

@@ -38,6 +38,9 @@ HEADERS = {
 }
 
 MOBILE_RE = re.compile(r"(?<!\d)([6-9]\d{9})(?!\d)")
+EMAIL_RE = re.compile(r"^[\w.+\-]+@[\w\-]+\.[a-z]{2,}$", re.I)
+# GSTIN: 2-digit state + 10-char PAN + entity + 'Z' + checksum (15 chars)
+GSTIN_RE = re.compile(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$")
 
 
 class AipmaScraper(BaseScraper):
@@ -119,19 +122,27 @@ class AipmaScraper(BaseScraper):
         else:
             return None  # no callable number — quality bar not met
 
-        website = self._field(card, "WEBSITE")
+        # Directory cards are occasionally misaligned (values land under the
+        # wrong label) — validate every optional field, drop what doesn't parse.
+        website = self._field(card, "WEBSITE").strip()
         if website and not website.startswith("http"):
             website = "https://" + website
-        gst = re.sub(r"[^0-9A-Z]", "", self._field(card, "GST NO").upper()) or None
+        if website and not re.search(r"\.[a-z]{2,}", website.lower()):
+            website = ""
+        email = (self._field(card, "EMAIL") or "").strip().lower()
+        if email and not EMAIL_RE.match(email):
+            email = ""
+        gst = re.sub(r"[^0-9A-Z]", "", self._field(card, "GST NO").upper())
+        gst = gst if GSTIN_RE.match(gst) else None
         cat_label = category.title() if category else "Member"
 
         return {
             "company_name": company,
             "full_name": (full_name or "").title() or None,
-            "title": title or None,
+            "title": (title or "")[:100] or None,
             "phone": phone,
-            "email": (self._field(card, "EMAIL") or "").lower() or None,
-            "company_url": website or None,
+            "email": email or None,
+            "company_url": website[:255] or None,
             "gst_number": gst,
             "industry": f"Plastics {cat_label}",
             "product_category": self._products(card) or "Plastics products",
