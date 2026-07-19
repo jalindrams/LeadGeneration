@@ -93,7 +93,8 @@ def main():
                         help="Which Micraft product this campaign targets (asked interactively if omitted)")
     parser.add_argument("--source",
                         choices=["indiamart", "google_maps", "tradeindia", "nabl",
-                                 "oem_dealers", "aipma", "iba_transporters", "all"],
+                                 "oem_dealers", "aipma", "iba_transporters",
+                                 "exhibition_pdf", "d2c_brands", "all"],
                         default="all")
     parser.add_argument("--city", default=None,
                         help="Target city, 'all' for the product's cities (default: product profile cities)")
