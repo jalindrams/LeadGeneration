@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+{% block title %}Outreach Engine — Micraft{% endblock %}
+
+{% block content %}
+<style>
+.outreach-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+}
+@media (max-width: 900px) { .outreach-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 600px) { .outreach-grid { grid-template-columns: 1fr; } }
+
+.stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+}
+.stat-card .stat-label { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+.stat-card .stat-value { font-size: 2rem; font-weight: 700; color: var(--text); }
+.stat-card .stat-sub   { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+
+.panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+.panel h3 { margin: 0 0 20px 0; font-size: 1rem; font-weight: 600; color: var(--text); }
+
+.form-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+.form-group { display: flex; flex-direction: column; gap: 6px; min-width: 140px; }
+.form-group label { font-size: 0.8rem; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.form-group select, .form-group input[type=number] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-size: 0.9rem;
+}
+.form-group select:focus, .form-group input:focus { outline: none; border-color: var(--accent); }
+
+.toggle-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.toggle-label { font-size: 0.85rem; color: var(--text); }
+
+.btn { padding: 10px 22px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: opacity 0.15s; }
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#run-result {
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    display: none;
+}
+#run-result.success { border-color: var(--success, #22c55e); }
+#run-result.error   { border-color: var(--danger, #ef4444); }
+
+.result-stats { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 14px; }
+.result-stat  { text-align: center; }
+.result-stat .n { font-size: 1.6rem; font-weight: 700; color: var(--text); }
+.result-stat .l { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
+
+.preview-list { max-height: 340px; overflow-y: auto; }
+.preview-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+.preview-item:last-child { border-bottom: none; }
+.ch-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.ch-wa    { background: #dcfce7; color: #166534; }
+.ch-email { background: #dbeafe; color: #1e40af; }
+.ch-fail  { background: #fee2e2; color: #991b1b; }
+.preview-text { color: var(--text-muted); }
+.tpl-key { color: var(--text); font-weight: 500; margin-right: 6px; }
+
+.log-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+.log-table th { text-align: left; padding: 8px 12px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 600; }
+.log-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+.log-table tr:last-child td { border-bottom: none; }
+.log-table tr:hover td { background: var(--bg); }
+.badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+.badge-sent      { background: #dcfce7; color: #166534; }
+.badge-failed    { background: #fee2e2; color: #991b1b; }
+.badge-queued    { background: #fef9c3; color: #713f12; }
+.badge-delivered { background: #dbeafe; color: #1e40af; }
+.log-empty { text-align: center; padding: 40px 0; color: var(--text-muted); font-size: 0.9rem; }
+
+.dry-run-notice {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: #fef9c3;
+    color: #713f12;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-left: 10px;
+}
+</style>
+
+<div class="page-header" style="margin-bottom: 24px;">
+    <h1 style="font-size: 1.4rem; font-weight: 700; margin: 0 0 4px 0;">Outreach Engine</h1>
+    <p style="color: var(--text-muted); margin: 0; font-size: 0.9rem;">WhatsApp + Email smart campaigns across all products</p>
+</div>
+
+<!-- Stats row -->
+<div class="outreach-grid" id="stats-row">
+    <div class="stat-card">
+        <div class="stat-label">Sent Today</div>
+        <div class="stat-value" id="stat-today">—</div>
+        <div class="stat-sub" id="stat-today-sub">Loading…</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total Sent (30d)</div>
+        <div class="stat-value" id="stat-total">—</div>
+        <div class="stat-sub" id="stat-channel">Loading…</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Delivery Rate</div>
+        <div class="stat-value" id="stat-delivery">—</div>
+        <div class="stat-sub">Delivered / Sent (WhatsApp)</div>
+    </div>
+</div>
+
+<!-- Batch runner panel -->
+<div class="panel">
+    <h3>Run Outreach Batch</h3>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Product</label>
+            <select id="sel-product">
+                <option value="all">All Products</option>
+                <option value="calibration">Calibration MS</option>
+                <option value="dms">DMS</option>
+                <option value="mes">MES</option>
+                <option value="tms">TMS</option>
+                <option value="courier">Courier MS</option>
+                <option value="ecom">Ecom / Shiplystic</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Tier</label>
+            <select id="sel-tier">
+                <option value="hot">Hot (score ≥ 70)</option>
+                <option value="warm" selected>Warm (score 40–69)</option>
+                <option value="all">All tiers</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Limit</label>
+            <input type="number" id="inp-limit" value="50" min="1" max="200" style="width: 90px;">
+        </div>
+        <div class="form-group">
+            <label>Cooldown (days)</label>
+            <input type="number" id="inp-cooldown" value="3" min="1" max="30" style="width: 90px;">
+        </div>
+        <div class="form-group">
+            <label>Mode</label>
+            <div class="toggle-row">
+                <input type="checkbox" id="chk-dryrun" checked style="width: 18px; height: 18px; cursor: pointer;">
+                <span class="toggle-label">Dry run (preview only)</span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" id="btn-run" onclick="runBatch()">
+                ▶ Run Batch
+            </button>
+        </div>
+    </div>
+
+    <div id="run-result">
+        <div class="result-stats" id="result-stats-row"></div>
+        <div class="preview-list" id="preview-list"></div>
+    </div>
+</div>
+
+<!-- Recent outreach log -->
+<div class="panel">
+    <h3>Recent Outreach Log</h3>
+    <div id="log-container">
+        <table class="log-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Company</th>
+                    <th>Channel</th>
+                    <th>Template</th>
+                    <th>Status</th>
+                    <th>Preview</th>
+                </tr>
+            </thead>
+            <tbody id="log-body">
+                <tr><td colspan="6" class="log-empty">Loading log…</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Load stats on page load
+async function loadStats() {
+    try {
+        const r = await fetch('/api/outreach/stats?days=30');
+        if (!r.ok) return;
+        const d = await r.json();
+
+        document.getElementById('stat-total').textContent = d.total_sent.toLocaleString();
+
+        const byChannel = d.by_channel || {};
+        const waSent = (byChannel.whatsapp || {}).sent || 0;
+        const emailSent = (byChannel.email || {}).sent || 0;
+        document.getElementById('stat-channel').textContent =
+            `WhatsApp: ${waSent} · Email: ${emailSent}`;
+
+        const waDelivered = (byChannel.whatsapp || {}).delivered || 0;
+        const rate = waSent > 0 ? Math.round(waDelivered / waSent * 100) : 0;
+        document.getElementById('stat-delivery').textContent = rate + '%';
+    } catch(e) {
+        document.getElementById('stat-total').textContent = '—';
+    }
+}
+
+async function loadLog() {
+    try {
+        const r = await fetch('/api/outreach/log?per_page=30');
+        if (!r.ok) { renderLogEmpty('Could not load log'); return; }
+        const d = await r.json();
+        if (!d.items || d.items.length === 0) {
+            renderLogEmpty('No outreach sent yet — run your first batch above.');
+            return;
+        }
+        renderLog(d.items);
+    } catch(e) {
+        renderLogEmpty('Error loading log');
+    }
+}
+
+function renderLogEmpty(msg) {
+    document.getElementById('log-body').innerHTML =
+        `<tr><td colspan="6" class="log-empty">${msg}</td></tr>`;
+}
+
+function renderLog(items) {
+    const rows = items.map(item => {
+        const chClass = item.channel === 'whatsapp' ? 'ch-wa' :
+                        item.channel === 'email'     ? 'ch-email' : 'ch-fail';
+        const chLabel = item.channel === 'whatsapp' ? 'WhatsApp' :
+                        item.channel === 'email'     ? 'Email' : item.channel || '?';
+        const statusClass = item.status === 'sent'      ? 'badge-sent' :
+                            item.status === 'failed'    ? 'badge-failed' :
+                            item.status === 'delivered' ? 'badge-delivered' : 'badge-queued';
+        const time = item.sent_at
+            ? new Date(item.sent_at).toLocaleString('en-IN', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+            : new Date(item.created_at).toLocaleString('en-IN', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+        const preview = (item.message_preview || '').substring(0, 60) + (item.message_preview && item.message_preview.length > 60 ? '…' : '');
+
+        return `<tr>
+            <td style="white-space:nowrap;color:var(--text-muted)">${time}</td>
+            <td><a href="/calling/lead/${item.lead_id}" style="color:var(--accent)">${item.lead_id.substring(0,8)}…</a></td>
+            <td><span class="ch-badge ${chClass}">${chLabel}</span></td>
+            <td style="font-family:monospace;font-size:0.78rem">${item.template_key || '—'}</td>
+            <td><span class="badge ${statusClass}">${item.status}</span></td>
+            <td style="color:var(--text-muted)">${preview}</td>
+        </tr>`;
+    });
+    document.getElementById('log-body').innerHTML = rows.join('');
+}
+
+async function runBatch() {
+    const btn = document.getElementById('btn-run');
+    const product = document.getElementById('sel-product').value;
+    const tier = document.getElementById('sel-tier').value;
+    const limit = parseInt(document.getElementById('inp-limit').value);
+    const cooldown = parseInt(document.getElementById('inp-cooldown').value);
+    const dryRun = document.getElementById('chk-dryrun').checked;
+
+    if (!dryRun) {
+        const ok = confirm(
+            `LIVE SEND: Will send real WhatsApp / email messages to up to ${limit} leads.\n\n` +
+            `Product: ${product} | Tier: ${tier}\n\nConfirm?`
+        );
+        if (!ok) return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = dryRun ? '⏳ Previewing…' : '⏳ Sending…';
+
+    const resultBox = document.getElementById('run-result');
+    resultBox.style.display = 'none';
+    resultBox.className = '';
+
+    try {
+        const r = await fetch('/api/outreach/send', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ product, tier, limit, cooldown_days: cooldown, dry_run: dryRun }),
+        });
+        const d = await r.json();
+
+        if (!r.ok) {
+            resultBox.innerHTML = `<b style="color:var(--danger)">Error:</b> ${d.detail || JSON.stringify(d)}`;
+            resultBox.style.display = 'block';
+            resultBox.className = 'error';
+            return;
+        }
+
+        renderBatchResult(d, dryRun);
+        if (!dryRun) { loadStats(); loadLog(); }
+    } catch(e) {
+        resultBox.innerHTML = `<b style="color:var(--danger)">Network error:</b> ${e.message}`;
+        resultBox.style.display = 'block';
+        resultBox.className = 'error';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '▶ Run Batch';
+    }
+}
+
+function renderBatchResult(d, dryRun) {
+    const resultBox = document.getElementById('run-result');
+    const statsRow = document.getElementById('result-stats-row');
+    const previewList = document.getElementById('preview-list');
+
+    const dryLabel = dryRun ? '<span class="dry-run-notice">📋 Dry Run — nothing was sent</span>' : '';
+
+    statsRow.innerHTML = `
+        <div class="result-stat"><div class="n">${d.eligible}</div><div class="l">Eligible</div></div>
+        <div class="result-stat"><div class="n" style="color:#16a34a">${d.sent_whatsapp}</div><div class="l">WhatsApp</div></div>
+        <div class="result-stat"><div class="n" style="color:#2563eb">${d.sent_email}</div><div class="l">Email</div></div>
+        <div class="result-stat"><div class="n" style="color:#dc2626">${d.failed}</div><div class="l">Failed</div></div>
+        ${dryLabel}
+    `;
+
+    if (d.results && d.results.length > 0) {
+        const items = d.results.map(r => {
+            const chClass = r.channel === 'whatsapp' ? 'ch-wa' :
+                            r.channel === 'email'     ? 'ch-email' : 'ch-fail';
+            const chLabel = r.channel === 'whatsapp' ? 'WA' :
+                            r.channel === 'email'     ? 'Email' : (r.channel || '?');
+            const ok = r.success;
+            return `<div class="preview-item">
+                <span class="ch-badge ${ok ? chClass : 'ch-fail'}">${ok ? chLabel : 'SKIP'}</span>
+                <span>
+                    <span class="tpl-key">${r.template_key || ''}</span>
+                    <span class="preview-text">${(r.preview || r.error || '').substring(0,100)}</span>
+                </span>
+            </div>`;
+        });
+        previewList.innerHTML = items.join('');
+    } else {
+        previewList.innerHTML = '<div style="padding:16px;color:var(--text-muted);text-align:center">No eligible leads found for these filters.</div>';
+    }
+
+    resultBox.style.display = 'block';
+    resultBox.className = 'success';
+}
+
+// Init
+loadStats();
+loadLog();
+</script>
+{% endblock %}
