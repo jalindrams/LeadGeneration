@@ -3,383 +3,457 @@
 
 {% block content %}
 <style>
-.outreach-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 28px;
+/* ── Tab nav ── */
+.tab-nav { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+.tab-btn {
+    padding: 9px 20px; border: none; background: none; cursor: pointer;
+    font-size: 0.9rem; font-weight: 500; color: var(--text-muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
 }
-@media (max-width: 900px) { .outreach-grid { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 600px) { .outreach-grid { grid-template-columns: 1fr; } }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.tab-pane { display: none; } .tab-pane.active { display: block; }
 
-.stat-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px 24px;
+/* ── Stat cards ── */
+.stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; }
+@media(max-width:700px){ .stat-row { grid-template-columns: 1fr 1fr; } }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; }
+.stat-card .sl { font-size: .75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing:.05em; margin-bottom:4px; }
+.stat-card .sv { font-size: 1.9rem; font-weight: 700; color: var(--text); }
+.stat-card .ss { font-size: .78rem; color: var(--text-muted); margin-top:3px; }
+
+/* ── Panel ── */
+.panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 22px; margin-bottom: 22px; }
+.panel h3 { margin: 0 0 18px 0; font-size: .95rem; font-weight: 600; }
+
+/* ── Form controls ── */
+.form-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+.fg { display: flex; flex-direction: column; gap: 5px; min-width: 130px; }
+.fg label { font-size: .75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing:.04em; }
+.fg select, .fg input[type=number] {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+    padding: 8px 11px; color: var(--text); font-size: .88rem;
 }
-.stat-card .stat-label { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
-.stat-card .stat-value { font-size: 2rem; font-weight: 700; color: var(--text); }
-.stat-card .stat-sub   { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+.fg select:focus, .fg input:focus { outline: none; border-color: var(--accent); }
 
-.panel {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 24px;
+/* ── Buttons ── */
+.btn { padding: 9px 20px; border-radius: 7px; border: none; cursor: pointer; font-size: .88rem; font-weight: 600; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-outline  { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn:hover { opacity: .85; } .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── Run result box ── */
+#run-result { margin-top: 18px; padding: 16px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); display: none; }
+.res-stats { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 12px; }
+.rs-n { font-size: 1.5rem; font-weight: 700; } .rs-l { font-size: .72rem; color: var(--text-muted); text-transform: uppercase; }
+.dry-tag { display: inline-block; padding: 3px 11px; background: #fef9c3; color: #713f12; border-radius: 20px; font-size: .75rem; font-weight: 700; margin-left: 6px; }
+
+/* ── Preview list ── */
+.prev-list { max-height: 320px; overflow-y: auto; }
+.prev-item { padding: 9px 10px; border-bottom: 1px solid var(--border); font-size: .81rem; display: flex; gap: 9px; align-items: flex-start; }
+.prev-item:last-child { border-bottom: none; }
+.ch { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .68rem; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.ch-wa { background: #dcfce7; color: #166534; }
+.ch-em { background: #dbeafe; color: #1e40af; }
+.ch-no { background: #fee2e2; color: #991b1b; }
+
+/* ── Log table ── */
+.log-tbl { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.log-tbl th { text-align: left; padding: 7px 11px; font-size: .72rem; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 600; }
+.log-tbl td { padding: 8px 11px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.log-tbl tr:last-child td { border-bottom: none; }
+.bdg { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .7rem; font-weight: 600; }
+.bdg-sent { background: #dcfce7; color: #166534; }
+.bdg-fail { background: #fee2e2; color: #991b1b; }
+.bdg-dlvr { background: #dbeafe; color: #1e40af; }
+.bdg-q    { background: #fef9c3; color: #713f12; }
+.empty-msg { text-align: center; padding: 36px 0; color: var(--text-muted); font-size: .88rem; }
+
+/* ── Templates tab ── */
+.tpl-layout { display: grid; grid-template-columns: 240px 1fr; gap: 20px; }
+@media(max-width:900px){ .tpl-layout { grid-template-columns: 1fr; } }
+
+.tpl-sidebar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.tpl-product-group { border-bottom: 1px solid var(--border); }
+.tpl-product-group:last-child { border-bottom: none; }
+.tpl-group-header { padding: 10px 14px; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); background: var(--bg); }
+.tpl-item { padding: 10px 14px; cursor: pointer; font-size: .83rem; color: var(--text-muted); border-left: 3px solid transparent; }
+.tpl-item:hover { background: var(--bg); color: var(--text); }
+.tpl-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--bg); font-weight: 500; }
+.tpl-step-tag { font-size: .68rem; padding: 1px 7px; border-radius: 20px; margin-left: 6px; }
+.tag-intro  { background: #dbeafe; color: #1e40af; }
+.tag-follow { background: #fef9c3; color: #713f12; }
+.tag-final  { background: #fee2e2; color: #991b1b; }
+
+.tpl-preview { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.tpl-preview-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; background: var(--bg); }
+.tpl-preview-header h3 { margin: 0; font-size: .9rem; font-weight: 600; }
+.meta-name { font-size: .75rem; font-family: monospace; background: var(--bg); border: 1px solid var(--border); padding: 2px 8px; border-radius: 5px; color: var(--text-muted); margin-left: auto; }
+
+.channel-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.ctab { padding: 10px 18px; border: none; background: none; cursor: pointer; font-size: .85rem; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.ctab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+.wa-preview {
+    padding: 20px;
+    background: #e5ddd5;
+    min-height: 200px;
 }
-.panel h3 { margin: 0 0 20px 0; font-size: 1rem; font-weight: 600; color: var(--text); }
+.wa-bubble {
+    background: #fff;
+    border-radius: 0 12px 12px 12px;
+    padding: 14px 16px;
+    max-width: 380px;
+    font-size: .88rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    box-shadow: 0 1px 2px rgba(0,0,0,.12);
+    color: #111;
+}
+.wa-meta { font-size: .72rem; color: #888; margin-top: 6px; text-align: right; }
+.wa-params-box { background: var(--bg); border-top: 1px solid var(--border); padding: 12px 18px; }
+.wa-params-box h4 { font-size: .75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin: 0 0 8px 0; }
+.param-chip { display: inline-block; background: #dbeafe; color: #1e40af; border-radius: 5px; padding: 3px 10px; font-size: .78rem; font-family: monospace; margin: 2px 4px 2px 0; }
 
-.form-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
-.form-group { display: flex; flex-direction: column; gap: 6px; min-width: 140px; }
-.form-group label { font-size: 0.8rem; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.form-group select, .form-group input[type=number] {
-    background: var(--bg);
+.email-preview { padding: 20px; }
+.email-subject-bar { font-size: .78rem; color: var(--text-muted); margin-bottom: 8px; }
+.email-subject-bar strong { color: var(--text); font-size: .88rem; display: block; margin-top: 2px; }
+.email-frame {
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 9px 12px;
-    color: var(--text);
-    font-size: 0.9rem;
+    overflow: hidden;
+    background: #fff;
+    color: #333;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    padding: 20px 24px;
+    max-width: 560px;
+    line-height: 1.6;
 }
-.form-group select:focus, .form-group input:focus { outline: none; border-color: var(--accent); }
-
-.toggle-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
-.toggle-label { font-size: 0.85rem; color: var(--text); }
-
-.btn { padding: 10px 22px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: opacity 0.15s; }
-.btn:hover { opacity: 0.85; }
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-#run-result {
-    margin-top: 20px;
-    padding: 16px;
-    border-radius: 10px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    display: none;
-}
-#run-result.success { border-color: var(--success, #22c55e); }
-#run-result.error   { border-color: var(--danger, #ef4444); }
-
-.result-stats { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 14px; }
-.result-stat  { text-align: center; }
-.result-stat .n { font-size: 1.6rem; font-weight: 700; color: var(--text); }
-.result-stat .l { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
-
-.preview-list { max-height: 340px; overflow-y: auto; }
-.preview-item {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.82rem;
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-}
-.preview-item:last-child { border-bottom: none; }
-.ch-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-.ch-wa    { background: #dcfce7; color: #166534; }
-.ch-email { background: #dbeafe; color: #1e40af; }
-.ch-fail  { background: #fee2e2; color: #991b1b; }
-.preview-text { color: var(--text-muted); }
-.tpl-key { color: var(--text); font-weight: 500; margin-right: 6px; }
-
-.log-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
-.log-table th { text-align: left; padding: 8px 12px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 600; }
-.log-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
-.log-table tr:last-child td { border-bottom: none; }
-.log-table tr:hover td { background: var(--bg); }
-.badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
-.badge-sent      { background: #dcfce7; color: #166534; }
-.badge-failed    { background: #fee2e2; color: #991b1b; }
-.badge-queued    { background: #fef9c3; color: #713f12; }
-.badge-delivered { background: #dbeafe; color: #1e40af; }
-.log-empty { text-align: center; padding: 40px 0; color: var(--text-muted); font-size: 0.9rem; }
-
-.dry-run-notice {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 12px;
-    background: #fef9c3;
-    color: #713f12;
-    border-radius: 20px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    margin-left: 10px;
-}
+.email-frame a { color: #0070f3; }
+.email-footer-bar { margin-top: 20px; padding-top: 14px; border-top: 1px solid #eee; font-size: 12px; color: #888; }
 </style>
 
-<div class="page-header" style="margin-bottom: 24px;">
-    <h1 style="font-size: 1.4rem; font-weight: 700; margin: 0 0 4px 0;">Outreach Engine</h1>
-    <p style="color: var(--text-muted); margin: 0; font-size: 0.9rem;">WhatsApp + Email smart campaigns across all products</p>
+<div style="margin-bottom:22px">
+    <h1 style="font-size:1.4rem;font-weight:700;margin:0 0 4px 0">📣 Outreach Engine</h1>
+    <p style="color:var(--text-muted);margin:0;font-size:.88rem">WhatsApp + Email smart campaigns across all products</p>
 </div>
 
-<!-- Stats row -->
-<div class="outreach-grid" id="stats-row">
-    <div class="stat-card">
-        <div class="stat-label">Sent Today</div>
-        <div class="stat-value" id="stat-today">—</div>
-        <div class="stat-sub" id="stat-today-sub">Loading…</div>
+<!-- Tab nav -->
+<div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('campaigns')">🚀 Campaigns</button>
+    <button class="tab-btn" onclick="switchTab('templates')">📋 Templates</button>
+    <button class="tab-btn" onclick="switchTab('log')">📜 Log</button>
+</div>
+
+<!-- ═══════════════════════════════════════════ CAMPAIGNS TAB ═══ -->
+<div class="tab-pane active" id="tab-campaigns">
+
+    <div class="stat-row">
+        <div class="stat-card"><div class="sl">Sent Today</div><div class="sv" id="s-today">—</div><div class="ss" id="s-today-sub">Loading…</div></div>
+        <div class="stat-card"><div class="sl">Total Sent (30d)</div><div class="sv" id="s-total">—</div><div class="ss" id="s-ch">—</div></div>
+        <div class="stat-card"><div class="sl">WA Delivery Rate</div><div class="sv" id="s-delivery">—</div><div class="ss">Delivered / Sent</div></div>
     </div>
-    <div class="stat-card">
-        <div class="stat-label">Total Sent (30d)</div>
-        <div class="stat-value" id="stat-total">—</div>
-        <div class="stat-sub" id="stat-channel">Loading…</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label">Delivery Rate</div>
-        <div class="stat-value" id="stat-delivery">—</div>
-        <div class="stat-sub">Delivered / Sent (WhatsApp)</div>
+
+    <div class="panel">
+        <h3>Run Outreach Batch</h3>
+        <div class="form-row">
+            <div class="fg">
+                <label>Product</label>
+                <select id="sel-product">
+                    <option value="all">All Products</option>
+                    <option value="calibration">Calibration MS</option>
+                    <option value="dms">DMS</option>
+                    <option value="mes">MES</option>
+                    <option value="tms">TMS</option>
+                    <option value="courier">Courier MS</option>
+                    <option value="ecom">Ecom / Shiplystic</option>
+                </select>
+            </div>
+            <div class="fg">
+                <label>Tier</label>
+                <select id="sel-tier">
+                    <option value="hot">Hot (score ≥ 70)</option>
+                    <option value="warm" selected>Warm (40–69)</option>
+                    <option value="all">All tiers</option>
+                </select>
+            </div>
+            <div class="fg"><label>Limit</label><input type="number" id="inp-limit" value="50" min="1" max="200" style="width:80px"></div>
+            <div class="fg"><label>Cooldown (days)</label><input type="number" id="inp-cool" value="3" min="1" max="30" style="width:80px"></div>
+            <div class="fg">
+                <label>Mode</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:.88rem;cursor:pointer;font-weight:400;color:var(--text)">
+                    <input type="checkbox" id="chk-dry" checked style="width:16px;height:16px"> Dry run (preview only)
+                </label>
+            </div>
+            <div class="fg"><label>&nbsp;</label><button class="btn btn-primary" id="btn-run" onclick="runBatch()">▶ Run</button></div>
+        </div>
+        <div id="run-result">
+            <div class="res-stats" id="res-stats"></div>
+            <div class="prev-list" id="prev-list"></div>
+        </div>
     </div>
 </div>
 
-<!-- Batch runner panel -->
-<div class="panel">
-    <h3>Run Outreach Batch</h3>
-    <div class="form-row">
-        <div class="form-group">
-            <label>Product</label>
-            <select id="sel-product">
-                <option value="all">All Products</option>
-                <option value="calibration">Calibration MS</option>
-                <option value="dms">DMS</option>
-                <option value="mes">MES</option>
-                <option value="tms">TMS</option>
-                <option value="courier">Courier MS</option>
-                <option value="ecom">Ecom / Shiplystic</option>
-            </select>
+<!-- ═══════════════════════════════════════════ TEMPLATES TAB ═══ -->
+<div class="tab-pane" id="tab-templates">
+    <div class="panel" style="padding:14px 18px;margin-bottom:16px">
+        <span style="font-size:.85rem;color:var(--text-muted)">
+            Preview every WhatsApp and Email template with a sample lead. These are the exact messages your leads will receive.
+            Submit WhatsApp template names to Meta for approval at
+            <a href="https://business.facebook.com" target="_blank" style="color:var(--accent)">business.facebook.com</a> → WhatsApp Manager → Message Templates.
+        </span>
+    </div>
+
+    <div class="tpl-layout">
+        <!-- Sidebar list -->
+        <div class="tpl-sidebar" id="tpl-sidebar">
+            <div style="padding:20px;color:var(--text-muted);text-align:center">Loading…</div>
         </div>
-        <div class="form-group">
-            <label>Tier</label>
-            <select id="sel-tier">
-                <option value="hot">Hot (score ≥ 70)</option>
-                <option value="warm" selected>Warm (score 40–69)</option>
-                <option value="all">All tiers</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Limit</label>
-            <input type="number" id="inp-limit" value="50" min="1" max="200" style="width: 90px;">
-        </div>
-        <div class="form-group">
-            <label>Cooldown (days)</label>
-            <input type="number" id="inp-cooldown" value="3" min="1" max="30" style="width: 90px;">
-        </div>
-        <div class="form-group">
-            <label>Mode</label>
-            <div class="toggle-row">
-                <input type="checkbox" id="chk-dryrun" checked style="width: 18px; height: 18px; cursor: pointer;">
-                <span class="toggle-label">Dry run (preview only)</span>
+
+        <!-- Preview pane -->
+        <div class="tpl-preview" id="tpl-preview">
+            <div style="padding:60px;text-align:center;color:var(--text-muted)">
+                ← Select a template to preview
             </div>
         </div>
-        <div class="form-group">
-            <label>&nbsp;</label>
-            <button class="btn btn-primary" id="btn-run" onclick="runBatch()">
-                ▶ Run Batch
-            </button>
-        </div>
-    </div>
-
-    <div id="run-result">
-        <div class="result-stats" id="result-stats-row"></div>
-        <div class="preview-list" id="preview-list"></div>
     </div>
 </div>
 
-<!-- Recent outreach log -->
-<div class="panel">
-    <h3>Recent Outreach Log</h3>
-    <div id="log-container">
-        <table class="log-table">
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Company</th>
-                    <th>Channel</th>
-                    <th>Template</th>
-                    <th>Status</th>
-                    <th>Preview</th>
-                </tr>
-            </thead>
-            <tbody id="log-body">
-                <tr><td colspan="6" class="log-empty">Loading log…</td></tr>
-            </tbody>
+<!-- ═══════════════════════════════════════════ LOG TAB ═══ -->
+<div class="tab-pane" id="tab-log">
+    <div class="panel" style="padding:0;overflow:hidden">
+        <table class="log-tbl">
+            <thead><tr>
+                <th>Time</th><th>Lead</th><th>Channel</th><th>Template</th><th>Status</th><th>Preview</th>
+            </tr></thead>
+            <tbody id="log-body"><tr><td colspan="6" class="empty-msg">Loading…</td></tr></tbody>
         </table>
     </div>
 </div>
 
 <script>
-// Load stats on page load
+/* ─── Tab switching ─── */
+function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['campaigns','templates','log'][i] === name));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'templates' && !window._tplLoaded) loadTemplates();
+    if (name === 'log' && !window._logLoaded) loadLog();
+}
+
+/* ─── Stats ─── */
 async function loadStats() {
     try {
-        const r = await fetch('/api/outreach/stats?days=30');
-        if (!r.ok) return;
-        const d = await r.json();
-
-        document.getElementById('stat-total').textContent = d.total_sent.toLocaleString();
-
-        const byChannel = d.by_channel || {};
-        const waSent = (byChannel.whatsapp || {}).sent || 0;
-        const emailSent = (byChannel.email || {}).sent || 0;
-        document.getElementById('stat-channel').textContent =
-            `WhatsApp: ${waSent} · Email: ${emailSent}`;
-
-        const waDelivered = (byChannel.whatsapp || {}).delivered || 0;
-        const rate = waSent > 0 ? Math.round(waDelivered / waSent * 100) : 0;
-        document.getElementById('stat-delivery').textContent = rate + '%';
-    } catch(e) {
-        document.getElementById('stat-total').textContent = '—';
-    }
+        const d = await (await fetch('/api/outreach/stats?days=30')).json();
+        document.getElementById('s-total').textContent = d.total_sent.toLocaleString();
+        const ch = d.by_channel || {};
+        const wa = ch.whatsapp || {}; const em = ch.email || {};
+        document.getElementById('s-ch').textContent = `WA: ${wa.sent||0} · Email: ${em.sent||0}`;
+        const rate = wa.sent > 0 ? Math.round((wa.delivered||0)/wa.sent*100) : 0;
+        document.getElementById('s-delivery').textContent = rate + '%';
+        document.getElementById('s-today').textContent = (wa.sent||0) + (em.sent||0);
+        document.getElementById('s-today-sub').textContent = 'across all channels';
+    } catch(e) {}
 }
 
-async function loadLog() {
-    try {
-        const r = await fetch('/api/outreach/log?per_page=30');
-        if (!r.ok) { renderLogEmpty('Could not load log'); return; }
-        const d = await r.json();
-        if (!d.items || d.items.length === 0) {
-            renderLogEmpty('No outreach sent yet — run your first batch above.');
-            return;
-        }
-        renderLog(d.items);
-    } catch(e) {
-        renderLogEmpty('Error loading log');
-    }
-}
-
-function renderLogEmpty(msg) {
-    document.getElementById('log-body').innerHTML =
-        `<tr><td colspan="6" class="log-empty">${msg}</td></tr>`;
-}
-
-function renderLog(items) {
-    const rows = items.map(item => {
-        const chClass = item.channel === 'whatsapp' ? 'ch-wa' :
-                        item.channel === 'email'     ? 'ch-email' : 'ch-fail';
-        const chLabel = item.channel === 'whatsapp' ? 'WhatsApp' :
-                        item.channel === 'email'     ? 'Email' : item.channel || '?';
-        const statusClass = item.status === 'sent'      ? 'badge-sent' :
-                            item.status === 'failed'    ? 'badge-failed' :
-                            item.status === 'delivered' ? 'badge-delivered' : 'badge-queued';
-        const time = item.sent_at
-            ? new Date(item.sent_at).toLocaleString('en-IN', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
-            : new Date(item.created_at).toLocaleString('en-IN', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-        const preview = (item.message_preview || '').substring(0, 60) + (item.message_preview && item.message_preview.length > 60 ? '…' : '');
-
-        return `<tr>
-            <td style="white-space:nowrap;color:var(--text-muted)">${time}</td>
-            <td><a href="/calling/lead/${item.lead_id}" style="color:var(--accent)">${item.lead_id.substring(0,8)}…</a></td>
-            <td><span class="ch-badge ${chClass}">${chLabel}</span></td>
-            <td style="font-family:monospace;font-size:0.78rem">${item.template_key || '—'}</td>
-            <td><span class="badge ${statusClass}">${item.status}</span></td>
-            <td style="color:var(--text-muted)">${preview}</td>
-        </tr>`;
-    });
-    document.getElementById('log-body').innerHTML = rows.join('');
-}
-
+/* ─── Batch runner ─── */
 async function runBatch() {
     const btn = document.getElementById('btn-run');
+    const dry = document.getElementById('chk-dry').checked;
     const product = document.getElementById('sel-product').value;
     const tier = document.getElementById('sel-tier').value;
-    const limit = parseInt(document.getElementById('inp-limit').value);
-    const cooldown = parseInt(document.getElementById('inp-cooldown').value);
-    const dryRun = document.getElementById('chk-dryrun').checked;
+    const limit = +document.getElementById('inp-limit').value;
+    const cool  = +document.getElementById('inp-cool').value;
 
-    if (!dryRun) {
-        const ok = confirm(
-            `LIVE SEND: Will send real WhatsApp / email messages to up to ${limit} leads.\n\n` +
-            `Product: ${product} | Tier: ${tier}\n\nConfirm?`
-        );
-        if (!ok) return;
-    }
+    if (!dry && !confirm(`LIVE SEND to up to ${limit} ${tier} ${product} leads.\n\nConfirm?`)) return;
 
-    btn.disabled = true;
-    btn.textContent = dryRun ? '⏳ Previewing…' : '⏳ Sending…';
-
-    const resultBox = document.getElementById('run-result');
-    resultBox.style.display = 'none';
-    resultBox.className = '';
+    btn.disabled = true; btn.textContent = '⏳…';
+    document.getElementById('run-result').style.display = 'none';
 
     try {
         const r = await fetch('/api/outreach/send', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ product, tier, limit, cooldown_days: cooldown, dry_run: dryRun }),
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({product, tier, limit, cooldown_days: cool, dry_run: dry}),
         });
         const d = await r.json();
+        if (!r.ok) { alert(d.detail || JSON.stringify(d)); return; }
+        renderResult(d, dry);
+        if (!dry) { loadStats(); loadLog(); }
+    } finally { btn.disabled = false; btn.textContent = '▶ Run'; }
+}
 
-        if (!r.ok) {
-            resultBox.innerHTML = `<b style="color:var(--danger)">Error:</b> ${d.detail || JSON.stringify(d)}`;
-            resultBox.style.display = 'block';
-            resultBox.className = 'error';
-            return;
-        }
+function renderResult(d, dry) {
+    const box = document.getElementById('run-result');
+    document.getElementById('res-stats').innerHTML = `
+        <div><div class="rs-n">${d.eligible}</div><div class="rs-l">Eligible</div></div>
+        <div><div class="rs-n" style="color:#16a34a">${d.sent_whatsapp}</div><div class="rs-l">WhatsApp</div></div>
+        <div><div class="rs-n" style="color:#2563eb">${d.sent_email}</div><div class="rs-l">Email</div></div>
+        <div><div class="rs-n" style="color:#dc2626">${d.failed}</div><div class="rs-l">Failed</div></div>
+        ${dry ? '<span class="dry-tag">📋 Dry Run — nothing sent</span>' : ''}
+    `;
+    const items = (d.results||[]).map(r => {
+        const ch = r.channel==='whatsapp'?'WA':r.channel==='email'?'Email':'—';
+        const cls= r.channel==='whatsapp'?'ch-wa':r.channel==='email'?'ch-em':'ch-no';
+        return `<div class="prev-item">
+            <span class="ch ${cls}">${r.success?ch:'SKIP'}</span>
+            <span><b style="font-size:.8rem">${r.template_key||''}</b> &nbsp;
+            <span style="color:var(--text-muted)">${(r.preview||r.error||'').substring(0,90)}</span></span>
+        </div>`;
+    });
+    document.getElementById('prev-list').innerHTML = items.length ? items.join('') :
+        '<div class="empty-msg">No eligible leads for these filters.</div>';
+    box.style.display = 'block';
+}
 
-        renderBatchResult(d, dryRun);
-        if (!dryRun) { loadStats(); loadLog(); }
+/* ─── Log ─── */
+let _logLoaded = false;
+async function loadLog() {
+    window._logLoaded = true;
+    try {
+        const d = await (await fetch('/api/outreach/log?per_page=40')).json();
+        if (!d.items?.length) { document.getElementById('log-body').innerHTML = '<tr><td colspan="6" class="empty-msg">No outreach sent yet.</td></tr>'; return; }
+        document.getElementById('log-body').innerHTML = d.items.map(i => {
+            const ch  = i.channel==='whatsapp'?'WhatsApp':i.channel==='email'?'Email':i.channel||'?';
+            const cc  = i.channel==='whatsapp'?'ch-wa':i.channel==='email'?'ch-em':'ch-no';
+            const sc  = i.status==='sent'?'bdg-sent':i.status==='failed'?'bdg-fail':i.status==='delivered'?'bdg-dlvr':'bdg-q';
+            const ts  = new Date(i.sent_at||i.created_at).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+            const prv = (i.message_preview||'').substring(0,55) + ((i.message_preview||'').length>55?'…':'');
+            return `<tr>
+                <td style="white-space:nowrap;color:var(--text-muted)">${ts}</td>
+                <td><a href="/calling/lead/${i.lead_id}" style="color:var(--accent);font-family:monospace;font-size:.78rem">${i.lead_id.substring(0,8)}…</a></td>
+                <td><span class="ch ${cc}">${ch}</span></td>
+                <td style="font-family:monospace;font-size:.76rem">${i.template_key||'—'}</td>
+                <td><span class="bdg ${sc}">${i.status}</span></td>
+                <td style="color:var(--text-muted);font-size:.78rem">${prv}</td>
+            </tr>`;
+        }).join('');
+    } catch(e) { document.getElementById('log-body').innerHTML = '<tr><td colspan="6" class="empty-msg">Error loading log</td></tr>'; }
+}
+
+/* ─── Templates ─── */
+let _tplLoaded = false;
+let _tplData = [];
+let _activeTpl = null;
+let _activeChannel = 'wa';
+
+const PRODUCT_LABELS = {
+    mes:'MES', dms:'DMS', tms:'TMS', courier:'Courier MS',
+    calibration:'Calibration MS', ecom:'Ecom / Shiplystic', final:'General',
+};
+
+async function loadTemplates() {
+    window._tplLoaded = true;
+    try {
+        const d = await (await fetch('/api/outreach/templates')).json();
+        _tplData = d.templates;
+        renderSidebar(_tplData);
+        if (_tplData.length) showTemplate(_tplData[0]);
     } catch(e) {
-        resultBox.innerHTML = `<b style="color:var(--danger)">Network error:</b> ${e.message}`;
-        resultBox.style.display = 'block';
-        resultBox.className = 'error';
-    } finally {
-        btn.disabled = false;
-        btn.textContent = '▶ Run Batch';
+        document.getElementById('tpl-sidebar').innerHTML = '<div style="padding:20px;color:red">Error loading templates</div>';
     }
 }
 
-function renderBatchResult(d, dryRun) {
-    const resultBox = document.getElementById('run-result');
-    const statsRow = document.getElementById('result-stats-row');
-    const previewList = document.getElementById('preview-list');
+function renderSidebar(tpls) {
+    // Group by product
+    const groups = {};
+    tpls.forEach(t => {
+        const p = t.key.includes('final') ? 'final' : t.product;
+        (groups[p] = groups[p]||[]).push(t);
+    });
 
-    const dryLabel = dryRun ? '<span class="dry-run-notice">📋 Dry Run — nothing was sent</span>' : '';
+    const stepTag = key => {
+        if (key.includes('followup')) return '<span class="tpl-step-tag tag-follow">Follow-up</span>';
+        if (key.includes('final'))    return '<span class="tpl-step-tag tag-final">Final</span>';
+        return '<span class="tpl-step-tag tag-intro">Intro</span>';
+    };
 
-    statsRow.innerHTML = `
-        <div class="result-stat"><div class="n">${d.eligible}</div><div class="l">Eligible</div></div>
-        <div class="result-stat"><div class="n" style="color:#16a34a">${d.sent_whatsapp}</div><div class="l">WhatsApp</div></div>
-        <div class="result-stat"><div class="n" style="color:#2563eb">${d.sent_email}</div><div class="l">Email</div></div>
-        <div class="result-stat"><div class="n" style="color:#dc2626">${d.failed}</div><div class="l">Failed</div></div>
-        ${dryLabel}
-    `;
+    document.getElementById('tpl-sidebar').innerHTML = Object.entries(groups).map(([prod, items]) => `
+        <div class="tpl-product-group">
+            <div class="tpl-group-header">${PRODUCT_LABELS[prod]||prod}</div>
+            ${items.map(t => `
+                <div class="tpl-item" id="tpl-item-${t.key}" onclick="showTemplate(${JSON.stringify(t).replace(/"/g,'&quot;')})">
+                    ${t.key.replace(/_/g,' ').replace(prod+' ','').trim()}
+                    ${stepTag(t.key)}
+                </div>
+            `).join('')}
+        </div>
+    `).join('');
+}
 
-    if (d.results && d.results.length > 0) {
-        const items = d.results.map(r => {
-            const chClass = r.channel === 'whatsapp' ? 'ch-wa' :
-                            r.channel === 'email'     ? 'ch-email' : 'ch-fail';
-            const chLabel = r.channel === 'whatsapp' ? 'WA' :
-                            r.channel === 'email'     ? 'Email' : (r.channel || '?');
-            const ok = r.success;
-            return `<div class="preview-item">
-                <span class="ch-badge ${ok ? chClass : 'ch-fail'}">${ok ? chLabel : 'SKIP'}</span>
-                <span>
-                    <span class="tpl-key">${r.template_key || ''}</span>
-                    <span class="preview-text">${(r.preview || r.error || '').substring(0,100)}</span>
-                </span>
-            </div>`;
-        });
-        previewList.innerHTML = items.join('');
-    } else {
-        previewList.innerHTML = '<div style="padding:16px;color:var(--text-muted);text-align:center">No eligible leads found for these filters.</div>';
+function showTemplate(tpl) {
+    if (_activeTpl) {
+        const prev = document.getElementById('tpl-item-' + _activeTpl.key);
+        if (prev) prev.classList.remove('active');
     }
+    _activeTpl = tpl;
+    const el = document.getElementById('tpl-item-' + tpl.key);
+    if (el) el.classList.add('active');
+    renderPreviewPane(tpl, _activeChannel);
+}
 
-    resultBox.style.display = 'block';
-    resultBox.className = 'success';
+function switchChannel(ch) {
+    _activeChannel = ch;
+    document.querySelectorAll('.ctab').forEach(b => b.classList.toggle('active', b.dataset.ch === ch));
+    document.getElementById('ch-wa-pane').style.display  = ch==='wa'    ? 'block' : 'none';
+    document.getElementById('ch-em-pane').style.display  = ch==='email' ? 'block' : 'none';
+}
+
+function renderPreviewPane(tpl, initChannel) {
+    const prod = PRODUCT_LABELS[tpl.product] || tpl.product;
+    const stepTag = tpl.key.includes('followup') ? '<span class="tpl-step-tag tag-follow" style="font-size:.75rem">Follow-up</span>'
+                  : tpl.key.includes('final')    ? '<span class="tpl-step-tag tag-final" style="font-size:.75rem">Final</span>'
+                  : '<span class="tpl-step-tag tag-intro" style="font-size:.75rem">Intro</span>';
+
+    const emailHtml = tpl.email_html + `
+        <div class="email-footer-bar">
+            Micraft Solutions Pvt Ltd | Pune, Maharashtra<br>
+            <a href="https://micraft.co.in">micraft.co.in</a> |
+            <a href="mailto:sales@micraft.co.in">sales@micraft.co.in</a>
+        </div>`;
+
+    document.getElementById('tpl-preview').innerHTML = `
+        <div class="tpl-preview-header">
+            <h3>${prod} &nbsp;${stepTag}</h3>
+            <span class="meta-name">${tpl.wa_name}</span>
+        </div>
+        <div class="channel-tabs">
+            <button class="ctab ${initChannel==='wa'?'active':''}" data-ch="wa" onclick="switchChannel('wa')">💬 WhatsApp</button>
+            <button class="ctab ${initChannel==='email'?'active':''}" data-ch="email" onclick="switchChannel('email')">📧 Email</button>
+        </div>
+
+        <!-- WA pane -->
+        <div id="ch-wa-pane" style="display:${initChannel==='wa'?'block':'none'}">
+            <div class="wa-preview">
+                <div class="wa-bubble">${escapeHtml(tpl.wa_preview)}</div>
+                <div class="wa-meta">Micraft Solutions · just now ✓✓</div>
+            </div>
+            <div class="wa-params-box">
+                <h4>Meta Template Name &amp; Parameters (for approval submission)</h4>
+                <div>Template: <span class="param-chip">${tpl.wa_name}</span></div>
+                <div style="margin-top:6px">
+                    Parameters (${tpl.wa_params_count} variable${tpl.wa_params_count!==1?'s':''}):
+                    ${Array.from({length:tpl.wa_params_count},(_,i)=>`<span class="param-chip">{{${i+1}}}</span>`).join('')}
+                </div>
+                <div style="margin-top:10px;font-size:.75rem;color:var(--text-muted)">
+                    Submit at: <a href="https://business.facebook.com" target="_blank" style="color:var(--accent)">business.facebook.com</a>
+                    → WhatsApp Manager → Message Templates → Create Template → paste the body text above.
+                </div>
+            </div>
+        </div>
+
+        <!-- Email pane -->
+        <div id="ch-em-pane" style="display:${initChannel==='email'?'block':'none'};padding:20px">
+            <div class="email-subject-bar">Subject:<strong>${escapeHtml(tpl.email_subject)}</strong></div>
+            <div class="email-frame">${emailHtml}</div>
+        </div>
+    `;
+}
+
+function escapeHtml(s) {
+    return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
 }
 
 // Init
 loadStats();
-loadLog();
 </script>
 {% endblock %}

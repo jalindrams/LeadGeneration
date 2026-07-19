@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.utils.logger import setup_logging
-from app.api import health, leads, metrics, calling, pages, admin, auth, feedback, outreach
+from app.api import health, leads, metrics, calling, pages, admin, auth, feedback, outreach, settings_api
 from fastapi.staticfiles import StaticFiles
 
 # Initialize logging
@@ -44,6 +44,7 @@ app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(feedback.router)
 app.include_router(outreach.router)
+app.include_router(settings_api.router)
 
 
 @app.get("/")

@@ -139,6 +139,30 @@ def outreach_stats(
     }
 
 
+@router.get("/templates")
+def list_templates(user=Depends(require_auth)):
+    """Return all templates rendered with a sample lead."""
+    from app.outreach.templates import TEMPLATES, render
+    sample = {
+        "full_name": "Rajesh Kumar",
+        "company_name": "ABC Instruments Pvt Ltd",
+    }
+    result = []
+    for key, tpl in TEMPLATES.items():
+        product = key.split("_")[0] if "_" in key else "all"
+        rendered = render(key, sample)
+        result.append({
+            "key": key,
+            "product": product,
+            "wa_name": rendered["wa_name"],
+            "wa_params_count": len(rendered["wa_params"]),
+            "wa_preview": rendered["wa_preview"],
+            "email_subject": rendered["email_subject"],
+            "email_html": rendered["email_html"],
+        })
+    return {"templates": result}
+
+
 @router.get("/log")
 def outreach_log(
     page: int = Query(1, ge=1),

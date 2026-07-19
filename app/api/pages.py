@@ -188,6 +188,14 @@ async def admin_api_page(request: Request, current_user: User = Depends(require_
         "current_user": current_user
     })
 
+@router.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request, current_user: User = Depends(require_admin)):
+    """Settings — configure .env values from the UI."""
+    return templates.TemplateResponse("settings.html", {
+        "request": request,
+        "current_user": current_user
+    })
+
 @router.get("/outreach", response_class=HTMLResponse)
 async def outreach_page(request: Request, current_user: User = Depends(require_admin)):
     """Outreach Engine UI — WhatsApp + email batch campaigns."""
