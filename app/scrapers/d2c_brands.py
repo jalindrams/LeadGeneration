@@ -7,11 +7,12 @@ Finds Indian D2C brands that are strong prospects for Shiplystic:
   - They have a shipping volume problem that a shipping aggregator solves
 
 Multi-source strategy (all free, no paid APIs):
-  Source 1 — Seed list of ~120 known Indian D2C brand URLs (curated)
+  Source 1 — Seed list of ~86 known Indian D2C brand URLs (curated)
   Source 2 — DPIIT Startup India ecom/retail sector companies (government DB)
-  Source 3 — Google Custom Search for myshopify.com India stores (optional;
-             requires GOOGLE_CSE_ID + GOOGLE_CSE_KEY env vars, free 100 q/day)
-  Source 4 — Platform detection from existing leads' company_url fields
+  Source 3 — Bing Web Search for myshopify.com India stores (optional;
+             requires BING_SEARCH_KEY env var; free 1,000 queries/month via Azure)
+             Setup: portal.azure.com → Create resource → Bing Web Search (free tier)
+             Google CSE is NOT used — Google deprecated "search entire web" in CSE.
 
 Platform detection: fetches each website and looks for:
   Shopify   → cdn.shopify.com OR myshopify.com OR /cdn/shop/ in source
@@ -52,6 +53,7 @@ DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
 
 DPIIT_SEARCH_URL = "https://startupindia.gov.in/content/sih/en/search.html"
 DPIIT_API_URL = "https://startupindia.gov.in/api/search/startup"
+BING_SEARCH_URL = "https://api.bing.microsoft.com/v7.0/search"
 
 # --- Curated seed list: known Indian D2C brands with their websites ---
 # SME-to-mid segment, likely on standard Shopify/WooCommerce plans
@@ -200,11 +202,11 @@ class D2cBrandsScraper(BaseScraper):
     SOURCE_NAME = "d2c_brands"
 
     def __init__(self, db: Session, target_product: str = "ecom",
-                 resolve_phones: bool = True, use_cse: bool = False):
+                 resolve_phones: bool = True, use_bing: bool = False):
         super().__init__(db, target_product=target_product)
         self.resolve_phones = resolve_phones
         self.api_key = settings.GOOGLE_MAPS_API_KEY
-        self.use_cse = use_cse
+        self.use_bing = use_bing
         self.platform_stats = {}
 
     def _fetch_url(self, url: str, timeout: int = 15) -> Optional[str]:
@@ -252,44 +254,63 @@ class D2cBrandsScraper(BaseScraper):
             log.debug("d2c_places_error", name=name, error=str(e)[:80])
         return result
 
-    def _cse_shopify_search(self) -> list[dict]:
+    def _bing_shopify_search(self) -> list[dict]:
         """
-        Google Custom Search for Indian myshopify.com stores.
-        Requires GOOGLE_CSE_ID env var. Free tier: 100 queries/day, 10 results each.
+        Bing Web Search for Indian myshopify.com + WooCommerce stores.
+        Requires BING_SEARCH_KEY env var.
+        Free tier: 1,000 queries/month via Azure (portal.azure.com → Bing Web Search).
+        Searches the entire web — no site restrictions like Google CSE.
         """
-        cse_id = getattr(settings, "GOOGLE_CSE_ID", None)
-        if not cse_id:
-            log.info("cse_skipped_no_id")
+        bing_key = getattr(settings, "BING_SEARCH_KEY", None)
+        if not bing_key:
+            log.info("bing_search_skipped_no_key")
             return []
-        CSE_URL = "https://www.googleapis.com/customsearch/v1"
+
         queries = [
             'site:myshopify.com "India" "COD available"',
             'site:myshopify.com "Made in India" OR "Ships from India"',
-            'site:myshopify.com "free shipping India" -shopify.com/blog',
-            'site:myshopify.com "India" clothing OR apparel OR fashion',
+            'site:myshopify.com "free shipping India"',
+            'site:myshopify.com "India" clothing OR fashion OR apparel',
             'site:myshopify.com "India" beauty OR skincare OR cosmetics',
+            'site:myshopify.com "India" food OR nutrition OR health',
+            'site:myshopify.com "India" home decor OR lifestyle',
+            'woocommerce "D2C" OR "direct to consumer" "India" "shop now"',
         ]
         brands = []
         for q in queries:
             try:
-                r = requests.get(CSE_URL, params={
-                    "key": self.api_key, "cx": cse_id, "q": q, "num": 10,
-                    "gl": "in",
-                }, timeout=20)
-                items = r.json().get("items", [])
+                r = requests.get(
+                    BING_SEARCH_URL,
+                    headers={"Ocp-Apim-Subscription-Key": bing_key},
+                    params={"q": q, "count": 10, "mkt": "en-IN", "safeSearch": "Off"},
+                    timeout=20,
+                )
+                r.raise_for_status()
+                items = r.json().get("webPages", {}).get("value", [])
                 for item in items:
-                    parsed = urlparse(item.get("link", ""))
+                    url = item.get("url", "")
+                    parsed = urlparse(url)
                     if "myshopify.com" in parsed.netloc:
                         shop_name = parsed.netloc.replace(".myshopify.com", "")
+                        display_name = shop_name.replace("-", " ").title()
                         brands.append({
-                            "name": shop_name.replace("-", " ").title(),
+                            "name": display_name,
                             "url": f"https://{parsed.netloc}",
-                            "category": "D2C (Shopify)",
+                            "category": "D2C (Shopify — Bing discovery)",
                         })
-                log.info("cse_query_done", query=q[:60], results=len(items))
+                    elif url:
+                        # Non-Shopify ecom brands found via Bing
+                        name = item.get("name", parsed.netloc).split(" - ")[0].strip()
+                        if name and len(name) > 3:
+                            brands.append({
+                                "name": name,
+                                "url": f"https://{parsed.netloc}",
+                                "category": "D2C (Bing discovery)",
+                            })
+                log.info("bing_query_done", query=q[:60], results=len(items))
                 time.sleep(1.0)
             except Exception as e:
-                log.warning("cse_error", query=q[:40], error=str(e)[:80])
+                log.warning("bing_search_error", query=q[:40], error=str(e)[:80])
         return brands
 
     def _dpiit_brands(self, max_pages: int = 5) -> list[dict]:
@@ -352,12 +373,12 @@ class D2cBrandsScraper(BaseScraper):
             brands.extend(dpiit)
             log.info("d2c_dpiit_done", found=len(dpiit))
 
-        # Source 3: Google CSE (optional)
-        if search_query in ("all", "cse") and self.use_cse:
-            log.info("d2c_cse_fetch")
-            cse = self._cse_shopify_search()
-            brands.extend(cse)
-            log.info("d2c_cse_done", found=len(cse))
+        # Source 3: Bing Web Search (optional — needs BING_SEARCH_KEY in .env)
+        if search_query in ("all", "bing") and self.use_bing:
+            log.info("d2c_bing_fetch")
+            bing = self._bing_shopify_search()
+            brands.extend(bing)
+            log.info("d2c_bing_done", found=len(bing))
 
         # Deduplicate by URL domain
         seen_domains = set()

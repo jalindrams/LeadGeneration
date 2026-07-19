@@ -6,19 +6,19 @@ as ecom leads for the Shiplystic product.
 
 Usage:
   python scripts/harvest_d2c.py                          # full harvest (seed + dpiit)
-  python scripts/harvest_d2c.py --source seed            # seed list only (~120 brands)
+  python scripts/harvest_d2c.py --source seed            # seed list only (~86 brands)
   python scripts/harvest_d2c.py --source dpiit           # DPIIT Startup India only
-  python scripts/harvest_d2c.py --source cse --use-cse   # Google CSE (needs GOOGLE_CSE_ID)
+  python scripts/harvest_d2c.py --source bing --use-bing # Bing Web Search (needs BING_SEARCH_KEY)
   python scripts/harvest_d2c.py --source seed --no-phones
   python scripts/harvest_d2c.py --source seed --dry-run  # preview only
   python scripts/harvest_d2c.py --source seed --max-brands 20  # smoke test
 
-Setup for Google CSE (optional):
-  1. Go to https://programmablesearchengine.google.com/
-  2. Create a new search engine, set to search the entire web
-  3. Copy the "Search engine ID"
-  4. Add to .env: GOOGLE_CSE_ID=your_cse_id_here
-  Then run with --use-cse to activate it.
+Setup for Bing Web Search (optional, free 1000 queries/month):
+  1. Go to portal.azure.com → Create a resource → Search "Bing Web Search"
+  2. Select free tier (F1) — no credit card needed
+  3. After creation, go to Keys and Endpoints → copy Key 1
+  4. Add to .env: BING_SEARCH_KEY=your_key_here
+  Then run with --use-bing to activate Shopify store discovery.
 """
 
 import argparse
@@ -37,12 +37,12 @@ log = get_logger("harvest_d2c")
 def main():
     parser = argparse.ArgumentParser(description="Harvest D2C brand leads for Shiplystic")
     parser.add_argument("--source", default="all",
-                        choices=["all", "seed", "dpiit", "cse"],
+                        choices=["all", "seed", "dpiit", "bing"],
                         help="Data source to use (default: all)")
     parser.add_argument("--no-phones", action="store_true",
                         help="Skip phone resolution (faster, uses 0 API quota)")
-    parser.add_argument("--use-cse", action="store_true",
-                        help="Enable Google Custom Search (needs GOOGLE_CSE_ID in .env)")
+    parser.add_argument("--use-bing", action="store_true",
+                        help="Enable Bing Web Search for Shopify discovery (needs BING_SEARCH_KEY in .env)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show extracted leads, do not write to DB")
     parser.add_argument("--max-brands", type=int, default=None,
@@ -55,13 +55,13 @@ def main():
             db,
             target_product="ecom",
             resolve_phones=not args.no_phones,
-            use_cse=args.use_cse,
+            use_bing=args.use_bing,
         )
 
         print(f"\nD2C Brand Harvester")
         print(f"  Source     : {args.source}")
         print(f"  Phones     : {'yes' if not args.no_phones else 'no'}")
-        print(f"  CSE        : {'yes' if args.use_cse else 'no'}")
+        print(f"  Bing       : {'yes' if args.use_bing else 'no'}")
         print(f"  Dry run    : {'yes' if args.dry_run else 'no'}")
         print(f"  Max brands : {args.max_brands or 'unlimited'}")
 
