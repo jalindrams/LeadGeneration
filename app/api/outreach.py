@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.auth import require_role
+from app.auth import require_auth, require_admin
 from app.database import get_db
 from app.models import Lead, OutreachLog
 from app.outreach import cadence
@@ -47,7 +47,7 @@ class PreviewRequest(BaseModel):
 def trigger_send(
     req: SendRequest,
     db: Session = Depends(get_db),
-    user=Depends(require_role("admin")),
+    user=Depends(require_admin),
 ):
     """
     Trigger a batch outreach run.
@@ -78,7 +78,7 @@ def trigger_send(
 def preview_template(
     req: PreviewRequest,
     db: Session = Depends(get_db),
-    user=Depends(require_role("sales_rep")),
+    user=Depends(require_auth),
 ):
     """Preview the rendered template for a specific lead at a given step."""
     lead = db.query(Lead).filter(Lead.id == req.lead_id).first()
@@ -107,7 +107,7 @@ def preview_template(
 def outreach_stats(
     days: int = Query(30, ge=1, le=365),
     db: Session = Depends(get_db),
-    user=Depends(require_role("admin")),
+    user=Depends(require_admin),
 ):
     """Outreach stats over the last N days."""
     since = datetime.utcnow() - timedelta(days=days)
@@ -146,7 +146,7 @@ def outreach_log(
     channel: Optional[str] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    user=Depends(require_role("admin")),
+    user=Depends(require_admin),
 ):
     """Paginated outreach log."""
     q = db.query(OutreachLog).order_by(OutreachLog.created_at.desc())
