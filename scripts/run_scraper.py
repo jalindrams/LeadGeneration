@@ -45,6 +45,18 @@ def run_source(db, source: str, product: str, city: str, queries: list[str],
         from app.scrapers.nabl import NablScraper
         scraper = NablScraper(db, target_product=product)
         icon = "[NABL]"
+    elif source == "oem_dealers":
+        from app.scrapers.oem_dealers import OemDealerScraper
+        scraper = OemDealerScraper(db, target_product=product)
+        icon = "[OEM]"
+    elif source == "aipma":
+        from app.scrapers.aipma import AipmaScraper
+        scraper = AipmaScraper(db, target_product=product)
+        icon = "[AIPMA]"
+    elif source == "iba_transporters":
+        from app.scrapers.iba_transporters import IbaTransportersScraper
+        scraper = IbaTransportersScraper(db, target_product=product)
+        icon = "[IBA]"
     else:
         from app.scrapers.google_maps import GoogleMapsScraper
         scraper = GoogleMapsScraper(db, target_product=product)
@@ -53,6 +65,10 @@ def run_source(db, source: str, product: str, city: str, queries: list[str],
     total = {"found": 0, "stored": 0, "duplicate": 0, "errors": 0}
     if source == "nabl":
         queries = ["calibration"]  # one state-wide directory pull per city
+    elif source == "oem_dealers":
+        queries = ["all"]  # sitemap pull; city arg filters the URL segment
+    elif source in ("aipma", "iba_transporters"):
+        queries = ["all"]  # full-directory pulls; scorer segments downstream
     for query in queries:
         if remaining_target is not None and remaining_target - total["stored"] <= 0:
             break
@@ -76,7 +92,8 @@ def main():
     parser.add_argument("--product", choices=list(PRODUCT_PROFILES), default=None,
                         help="Which Micraft product this campaign targets (asked interactively if omitted)")
     parser.add_argument("--source",
-                        choices=["indiamart", "google_maps", "tradeindia", "nabl", "all"],
+                        choices=["indiamart", "google_maps", "tradeindia", "nabl",
+                                 "oem_dealers", "aipma", "iba_transporters", "all"],
                         default="all")
     parser.add_argument("--city", default=None,
                         help="Target city, 'all' for the product's cities (default: product profile cities)")
