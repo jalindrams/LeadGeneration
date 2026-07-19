@@ -5,6 +5,8 @@ POST /api/outreach/send          Trigger a batch outreach run
 POST /api/outreach/preview       Preview templates for a lead (no send)
 GET  /api/outreach/stats         Outreach stats by channel / product / day
 GET  /api/outreach/log           Outreach log (paginated)
+GET  /api/outreach/cadence       Cadence pipeline — step counts + ready-to-contact leads
+GET  /api/outreach/templates     All templates rendered with a sample lead
 """
 
 from datetime import datetime, timedelta
@@ -12,7 +14,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import func, or_, and_
 from sqlalchemy.orm import Session
 
 from app.auth import require_auth, require_admin
@@ -201,4 +203,174 @@ def outreach_log(
             }
             for r in rows
         ],
+    }
+
+
+@router.get("/cadence")
+def cadence_pipeline(
+    product: str = Query("all"),
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    """
+    Cadence pipeline dashboard data.
+
+    Returns:
+    - pipeline: counts at each outreach stage (pending → step1 → step2 → exhausted / responses)
+    - by_product: per-product breakdown
+    - ready: top-50 leads ready for next touch (cooldown elapsed)
+    - responses: leads with positive response_status in last 30 days
+    - recent_activity: last 10 outreach log entries
+    """
+    COOLDOWN_DAYS = 3
+    cutoff = datetime.utcnow() - timedelta(days=COOLDOWN_DAYS)
+
+    base_q = db.query(Lead).filter(Lead.status != "synthetic")
+    if product != "all":
+        base_q = base_q.filter(Lead.target_product == product)
+
+    # ── Pipeline stage counts ──────────────────────────────────────────────
+    total_in_scope = base_q.count()
+
+    opted_out  = base_q.filter(Lead.outreach_status == "opted_out").count()
+    exhausted  = base_q.filter(Lead.outreach_status == "exhausted").count()
+    converted  = base_q.filter(Lead.response_status == "converted").count()
+    interested = base_q.filter(
+        Lead.response_status == "interested",
+        Lead.outreach_status != "opted_out",
+    ).count()
+
+    # never contacted
+    pending = base_q.filter(
+        or_(Lead.follow_up_count.is_(None), Lead.follow_up_count == 0),
+        Lead.outreach_status.notin_(["exhausted", "opted_out"]),
+        or_(Lead.response_status.is_(None), Lead.response_status == "no_response"),
+    ).count()
+
+    # touched once
+    step1 = base_q.filter(
+        Lead.follow_up_count == 1,
+        Lead.outreach_status.notin_(["exhausted", "opted_out"]),
+        or_(Lead.response_status.is_(None), Lead.response_status == "no_response"),
+    ).count()
+
+    # touched twice
+    step2 = base_q.filter(
+        Lead.follow_up_count == 2,
+        Lead.outreach_status.notin_(["exhausted", "opted_out"]),
+        or_(Lead.response_status.is_(None), Lead.response_status == "no_response"),
+    ).count()
+
+    pipeline = {
+        "total": total_in_scope,
+        "pending":    {"label": "Not Yet Contacted", "count": pending,    "step": 0},
+        "step1":      {"label": "Intro Sent",        "count": step1,      "step": 1},
+        "step2":      {"label": "Follow-up 1 Sent",  "count": step2,      "step": 2},
+        "exhausted":  {"label": "Exhausted",          "count": exhausted,  "step": -1},
+        "interested": {"label": "Interested",         "count": interested, "step": -1},
+        "converted":  {"label": "Converted",          "count": converted,  "step": -1},
+        "opted_out":  {"label": "Opted Out",          "count": opted_out,  "step": -1},
+    }
+
+    # ── Per-product breakdown ──────────────────────────────────────────────
+    products = ["calibration", "dms", "mes", "tms", "courier", "ecom"]
+    by_product = {}
+    for p in products:
+        pq = db.query(Lead).filter(Lead.status != "synthetic", Lead.target_product == p)
+        by_product[p] = {
+            "total":      pq.count(),
+            "pending":    pq.filter(or_(Lead.follow_up_count.is_(None), Lead.follow_up_count == 0),
+                                    Lead.outreach_status.notin_(["exhausted","opted_out"])).count(),
+            "in_seq":     pq.filter(Lead.follow_up_count >= 1,
+                                    Lead.outreach_status.notin_(["exhausted","opted_out"])).count(),
+            "exhausted":  pq.filter(Lead.outreach_status == "exhausted").count(),
+            "interested": pq.filter(Lead.response_status == "interested").count(),
+            "converted":  pq.filter(Lead.response_status == "converted").count(),
+        }
+
+    # ── Ready to contact (cooldown elapsed, not exhausted) ────────────────
+    ready_q = db.query(Lead).filter(
+        Lead.status != "synthetic",
+        Lead.outreach_status.notin_(["exhausted", "opted_out"]),
+        or_(Lead.response_status.is_(None), Lead.response_status == "no_response"),
+        or_(Lead.follow_up_count.is_(None), Lead.follow_up_count < 3),
+        or_(Lead.phone.isnot(None), Lead.email.isnot(None)),
+        or_(Lead.last_contacted_at.is_(None), Lead.last_contacted_at <= cutoff),
+    )
+    if product != "all":
+        ready_q = ready_q.filter(Lead.target_product == product)
+
+    ready_leads = ready_q.order_by(Lead.score.desc()).limit(50).all()
+
+    ready = [
+        {
+            "id":              str(l.id),
+            "full_name":       l.full_name,
+            "company_name":    l.company_name,
+            "target_product":  l.target_product,
+            "phone":           bool(l.phone),
+            "email":           bool(l.email),
+            "score":           l.score,
+            "follow_up_count": l.follow_up_count or 0,
+            "last_contacted":  l.last_contacted_at.isoformat() if l.last_contacted_at else None,
+            "next_step":       min((l.follow_up_count or 0), 2),
+        }
+        for l in ready_leads
+    ]
+
+    # ── Positive responses (last 30 days) ─────────────────────────────────
+    since_30d = datetime.utcnow() - timedelta(days=30)
+    resp_leads = (
+        db.query(Lead)
+        .filter(
+            Lead.status != "synthetic",
+            Lead.response_status.in_(["interested", "converted"]),
+            Lead.updated_at >= since_30d,
+        )
+        .order_by(Lead.updated_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    responses = [
+        {
+            "id":             str(l.id),
+            "full_name":      l.full_name,
+            "company_name":   l.company_name,
+            "target_product": l.target_product,
+            "response_status": l.response_status,
+            "score":          l.score,
+            "updated_at":     l.updated_at.isoformat() if l.updated_at else None,
+        }
+        for l in resp_leads
+    ]
+
+    # ── Recent outreach activity ───────────────────────────────────────────
+    try:
+        recent_log = (
+            db.query(OutreachLog)
+            .order_by(OutreachLog.created_at.desc())
+            .limit(10)
+            .all()
+        )
+        recent_activity = [
+            {
+                "lead_id":      str(r.lead_id),
+                "channel":      r.channel,
+                "template_key": r.template_key,
+                "status":       r.status,
+                "created_at":   r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in recent_log
+        ]
+    except Exception:
+        recent_activity = []
+
+    return {
+        "pipeline":        pipeline,
+        "by_product":      by_product,
+        "ready":           ready,
+        "ready_count":     len(ready),
+        "responses":       responses,
+        "recent_activity": recent_activity,
     }

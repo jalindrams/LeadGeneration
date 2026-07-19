@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.database import engine, Base
 from app.models import (
     Lead, ScrapeJob, LeadPipelineMetrics,
-    LeadFeedback, ManualReviewQueue, SourcePerformance,
+    LeadFeedback, ManualReviewQueue, SourcePerformance, OutreachLog,
 )
 
 

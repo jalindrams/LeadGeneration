@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+{% block title %}Cadence Pipeline — Micraft{% endblock %}
+
+{% block content %}
+<style>
+/* ── Header ── */
+.page-header { margin-bottom: 24px; }
+.page-header h1 { font-size: 1.4rem; font-weight: 700; margin: 0 0 4px 0; }
+.page-header p  { color: var(--text-muted); margin: 0; font-size: .88rem; }
+
+/* ── Filter bar ── */
+.filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 22px; flex-wrap: wrap; }
+.filter-bar label { font-size: .78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+.filter-bar select {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 7px;
+    padding: 7px 12px; color: var(--text); font-size: .85rem; cursor: pointer;
+}
+.filter-bar select:focus { outline: none; border-color: var(--accent); }
+.refresh-btn {
+    margin-left: auto; padding: 7px 16px; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 7px; color: var(--text-muted);
+    font-size: .82rem; cursor: pointer;
+}
+.refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Pipeline funnel ── */
+.funnel-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr) 20px repeat(3, 1fr);
+    gap: 6px;
+    align-items: stretch;
+    margin-bottom: 28px;
+}
+.funnel-stage {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 12px;
+    text-align: center;
+    position: relative;
+}
+.funnel-stage.active { border-color: var(--accent); }
+.funnel-stage.success { border-color: #16a34a; }
+.funnel-stage.warning { border-color: #d97706; }
+.funnel-stage.danger  { border-color: #dc2626; }
+
+.funnel-arrow { display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 1.1rem; }
+.fs-icon  { font-size: 1.4rem; margin-bottom: 6px; display: block; }
+.fs-count { font-size: 1.8rem; font-weight: 800; color: var(--text); line-height: 1; }
+.fs-label { font-size: .7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 4px; }
+.fs-pct   { font-size: .72rem; color: var(--accent); margin-top: 3px; font-weight: 600; }
+
+/* ── Section layout ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+@media(max-width:1000px) { .two-col { grid-template-columns: 1fr; } }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+@media(max-width:900px) { .three-col { grid-template-columns: 1fr; } }
+
+/* ── Card ── */
+.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--border); background: var(--bg);
+}
+.card-header h3 { margin: 0; font-size: .9rem; font-weight: 600; }
+.card-body { padding: 0; }
+.empty-msg { text-align: center; padding: 30px; color: var(--text-muted); font-size: .85rem; }
+
+/* ── Product table ── */
+.prod-tbl { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.prod-tbl th { padding: 8px 14px; text-align: right; font-size: .7rem; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 600; }
+.prod-tbl th:first-child { text-align: left; }
+.prod-tbl td { padding: 10px 14px; border-bottom: 1px solid var(--border); text-align: right; }
+.prod-tbl td:first-child { text-align: left; font-weight: 600; }
+.prod-tbl tr:last-child td { border-bottom: none; }
+.prod-pill {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: .7rem; font-weight: 700; text-transform: uppercase;
+}
+.p-cal { background:#e0e7ff;color:#3730a3; }
+.p-dms { background:#dcfce7;color:#166534; }
+.p-mes { background:#fef9c3;color:#713f12; }
+.p-tms { background:#fce7f3;color:#9d174d; }
+.p-cou { background:#fee2e2;color:#991b1b; }
+.p-eco { background:#dbeafe;color:#1e40af; }
+
+/* ── Ready list ── */
+.ready-list { max-height: 400px; overflow-y: auto; }
+.ready-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    font-size: .82rem;
+}
+.ready-item:last-child { border-bottom: none; }
+.ready-item:hover { background: var(--bg); }
+.ri-name { flex: 1; min-width: 0; }
+.ri-name strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ri-name span { color: var(--text-muted); font-size: .75rem; }
+.score-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.dot-hot  { background: #ef4444; }
+.dot-warm { background: #f59e0b; }
+.dot-cold { background: #6b7280; }
+.step-badge {
+    padding: 2px 8px; border-radius: 20px; font-size: .68rem; font-weight: 700;
+    white-space: nowrap; flex-shrink: 0;
+}
+.step-0 { background: #dbeafe; color: #1e40af; }
+.step-1 { background: #fef9c3; color: #713f12; }
+.step-2 { background: #fee2e2; color: #991b1b; }
+.ch-icons { display: flex; gap: 3px; flex-shrink: 0; }
+.ch-icon { font-size: .85rem; opacity: .4; }
+.ch-icon.has { opacity: 1; }
+.send-btn {
+    padding: 4px 12px; border-radius: 6px; border: 1px solid var(--accent);
+    background: transparent; color: var(--accent); font-size: .75rem;
+    cursor: pointer; font-weight: 600; white-space: nowrap; flex-shrink: 0;
+}
+.send-btn:hover { background: var(--accent); color: #fff; }
+.send-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── Response list ── */
+.resp-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: .82rem;
+}
+.resp-item:last-child { border-bottom: none; }
+.resp-badge { padding: 2px 10px; border-radius: 20px; font-size: .7rem; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.resp-interested { background: #dbeafe; color: #1e40af; }
+.resp-converted  { background: #dcfce7; color: #166534; }
+
+/* ── Activity feed ── */
+.act-item {
+    display: flex; gap: 10px; padding: 9px 16px;
+    border-bottom: 1px solid var(--border); font-size: .8rem; align-items: center;
+}
+.act-item:last-child { border-bottom: none; }
+.act-ch { padding: 2px 8px; border-radius: 20px; font-size: .68rem; font-weight: 700; flex-shrink: 0; }
+.act-wa { background: #dcfce7; color: #166534; }
+.act-em { background: #dbeafe; color: #1e40af; }
+.act-ok { color: #16a34a; }
+.act-fail { color: #dc2626; }
+
+/* ── Mini stats ── */
+.mini-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 22px; }
+@media(max-width:700px){ .mini-stats { grid-template-columns: 1fr 1fr; } }
+.mini-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.mini-card .ml { font-size: .7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing:.04em; margin-bottom:4px; }
+.mini-card .mv { font-size: 1.6rem; font-weight: 800; }
+.mini-card .ms { font-size: .72rem; color: var(--text-muted); margin-top:2px; }
+.c-green { color: #16a34a; } .c-blue { color: #2563eb; }
+.c-orange { color: #d97706; } .c-red { color: #dc2626; }
+
+/* ── Loading shimmer ── */
+.shimmer { background: linear-gradient(90deg, var(--bg) 25%, var(--border) 50%, var(--bg) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 6px; height: 20px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+</style>
+
+<div class="page-header">
+    <h1>🔁 Cadence Pipeline</h1>
+    <p>3-touch outreach sequence — track every lead from first contact to conversion</p>
+</div>
+
+<div class="filter-bar">
+    <label>Product</label>
+    <select id="sel-product" onchange="loadAll()">
+        <option value="all">All Products</option>
+        <option value="calibration">Calibration MS</option>
+        <option value="dms">DMS</option>
+        <option value="mes">MES</option>
+        <option value="tms">TMS</option>
+        <option value="courier">Courier MS</option>
+        <option value="ecom">Ecom / Shiplystic</option>
+    </select>
+    <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+    <span id="last-updated" style="font-size:.75rem;color:var(--text-muted)"></span>
+</div>
+
+<!-- Mini stat cards -->
+<div class="mini-stats" id="mini-stats">
+    <div class="mini-card"><div class="ml">Ready to Contact</div><div class="mv c-blue" id="ms-ready">—</div><div class="ms">cooldown elapsed</div></div>
+    <div class="mini-card"><div class="ml">Interested</div><div class="mv c-green" id="ms-interested">—</div><div class="ms">positive responses</div></div>
+    <div class="mini-card"><div class="ml">Converted</div><div class="mv c-green" id="ms-converted">—</div><div class="ms">closed deals</div></div>
+    <div class="mini-card"><div class="ml">Exhausted</div><div class="mv c-orange" id="ms-exhausted">—</div><div class="ms">3 touches sent</div></div>
+</div>
+
+<!-- Pipeline funnel -->
+<div class="funnel-row" id="funnel-row">
+    <div class="funnel-stage" id="fs-pending"><span class="fs-icon">📋</span><div class="fs-count" id="fc-pending">…</div><div class="fs-label">Not Contacted</div></div>
+    <div class="funnel-arrow">→</div>
+    <div class="funnel-stage" id="fs-step1"><span class="fs-icon">💬</span><div class="fs-count" id="fc-step1">…</div><div class="fs-label">Intro Sent</div></div>
+    <div class="funnel-arrow">→</div>
+    <div class="funnel-stage" id="fs-step2"><span class="fs-icon">🔔</span><div class="fs-count" id="fc-step2">…</div><div class="fs-label">Follow-up 1</div></div>
+    <div class="funnel-arrow">→</div>
+    <div class="funnel-stage" id="fs-exhausted"><span class="fs-icon">⚫</span><div class="fs-count" id="fc-exhausted">…</div><div class="fs-label">Exhausted</div></div>
+    <div class="funnel-arrow">|</div>
+    <div class="funnel-stage success" id="fs-interested"><span class="fs-icon">🙋</span><div class="fs-count c-green" id="fc-interested">…</div><div class="fs-label">Interested</div></div>
+    <div class="funnel-stage success" id="fs-converted"><span class="fs-icon">🏆</span><div class="fs-count c-green" id="fc-converted">…</div><div class="fs-label">Converted</div></div>
+    <div class="funnel-stage danger" id="fs-opted"><span class="fs-icon">🚫</span><div class="fs-count c-red" id="fc-opted">…</div><div class="fs-label">Opted Out</div></div>
+</div>
+
+<!-- Product breakdown + Activity -->
+<div class="two-col">
+    <!-- Product breakdown -->
+    <div class="card">
+        <div class="card-header"><h3>📊 By Product</h3></div>
+        <div class="card-body">
+            <table class="prod-tbl">
+                <thead><tr>
+                    <th>Product</th>
+                    <th>Total</th>
+                    <th>Pending</th>
+                    <th>In Seq</th>
+                    <th>Done</th>
+                    <th>✓ Response</th>
+                </tr></thead>
+                <tbody id="prod-tbody"><tr><td colspan="6" class="empty-msg">Loading…</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent activity + responses -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+        <!-- Positive responses -->
+        <div class="card">
+            <div class="card-header">
+                <h3>🙋 Positive Responses</h3>
+                <span style="font-size:.75rem;color:var(--text-muted)">Last 30 days</span>
+            </div>
+            <div id="resp-list"><div class="empty-msg">Loading…</div></div>
+        </div>
+
+        <!-- Recent outreach activity -->
+        <div class="card">
+            <div class="card-header">
+                <h3>⚡ Recent Activity</h3>
+                <span style="font-size:.75rem;color:var(--text-muted)">Last 10 sends</span>
+            </div>
+            <div id="act-list"><div class="empty-msg">Loading…</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- Ready to contact -->
+<div class="card">
+    <div class="card-header">
+        <h3>🚀 Ready to Contact <span id="ready-count-badge" style="font-size:.78rem;font-weight:400;color:var(--text-muted);margin-left:6px"></span></h3>
+        <button onclick="sendAllReady()" id="btn-send-ready" class="send-btn" style="font-size:.8rem;padding:5px 14px">
+            ▶ Send to All (Dry Run)
+        </button>
+    </div>
+    <div class="ready-list" id="ready-list">
+        <div class="empty-msg">Loading…</div>
+    </div>
+</div>
+
+{% raw %}<script>
+const PRODUCT_LABELS = {
+    mes:'MES', dms:'DMS', tms:'TMS', courier:'Courier MS',
+    calibration:'Calibration MS', ecom:'Ecom / Shiplystic',
+};
+const PRODUCT_PILL = {
+    calibration:'p-cal', dms:'p-dms', mes:'p-mes',
+    tms:'p-tms', courier:'p-cou', ecom:'p-eco',
+};
+const STEP_LABELS = ['Intro', 'Follow-up 1', 'Final'];
+
+let _data = null;
+
+async function loadAll() {
+    const product = document.getElementById('sel-product').value;
+    try {
+        const r = await fetch(`/api/outreach/cadence?product=${product}`);
+        if (!r.ok) throw new Error(await r.text());
+        _data = await r.json();
+        renderFunnel(_data.pipeline);
+        renderMiniStats(_data.pipeline, _data.ready_count);
+        renderProductTable(_data.by_product);
+        renderReadyList(_data.ready);
+        renderResponses(_data.responses);
+        renderActivity(_data.recent_activity);
+        document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN');
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+function renderFunnel(p) {
+    document.getElementById('fc-pending').textContent   = (p.pending?.count   ?? 0).toLocaleString();
+    document.getElementById('fc-step1').textContent     = (p.step1?.count     ?? 0).toLocaleString();
+    document.getElementById('fc-step2').textContent     = (p.step2?.count     ?? 0).toLocaleString();
+    document.getElementById('fc-exhausted').textContent = (p.exhausted?.count ?? 0).toLocaleString();
+    document.getElementById('fc-interested').textContent= (p.interested?.count?? 0).toLocaleString();
+    document.getElementById('fc-converted').textContent = (p.converted?.count ?? 0).toLocaleString();
+    document.getElementById('fc-opted').textContent     = (p.opted_out?.count ?? 0).toLocaleString();
+}
+
+function renderMiniStats(p, readyCount) {
+    document.getElementById('ms-ready').textContent     = readyCount ?? 0;
+    document.getElementById('ms-interested').textContent= p.interested?.count ?? 0;
+    document.getElementById('ms-converted').textContent = p.converted?.count  ?? 0;
+    document.getElementById('ms-exhausted').textContent = p.exhausted?.count  ?? 0;
+}
+
+function renderProductTable(byProd) {
+    const rows = Object.entries(byProd).map(([p, d]) => {
+        const pill = `<span class="prod-pill ${PRODUCT_PILL[p]||''}">${PRODUCT_LABELS[p]||p}</span>`;
+        const resp = (d.interested||0) + (d.converted||0);
+        return `<tr>
+            <td>${pill}</td>
+            <td>${d.total.toLocaleString()}</td>
+            <td style="color:var(--text-muted)">${d.pending.toLocaleString()}</td>
+            <td style="color:var(--accent)">${d.in_seq.toLocaleString()}</td>
+            <td style="color:var(--text-muted)">${d.exhausted.toLocaleString()}</td>
+            <td style="color:#16a34a;font-weight:600">${resp.toLocaleString()}</td>
+        </tr>`;
+    }).join('');
+    document.getElementById('prod-tbody').innerHTML = rows || '<tr><td colspan="6" class="empty-msg">No data</td></tr>';
+}
+
+function renderReadyList(leads) {
+    const badge = document.getElementById('ready-count-badge');
+    badge.textContent = `(${leads.length} leads)`;
+
+    if (!leads.length) {
+        document.getElementById('ready-list').innerHTML = '<div class="empty-msg">No leads ready — all are in cooldown or exhausted.</div>';
+        return;
+    }
+    document.getElementById('ready-list').innerHTML = leads.map(l => {
+        const tier = l.score >= 70 ? 'hot' : l.score >= 40 ? 'warm' : 'cold';
+        const dotCls = tier === 'hot' ? 'dot-hot' : tier === 'warm' ? 'dot-warm' : 'dot-cold';
+        const stepCls = ['step-0','step-1','step-2'][l.next_step] || 'step-2';
+        const stepLbl = STEP_LABELS[l.next_step] || 'Final';
+        const prod = PRODUCT_LABELS[l.target_product] || l.target_product;
+        const prodPill = PRODUCT_PILL[l.target_product] || '';
+        const last = l.last_contacted
+            ? new Date(l.last_contacted).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})
+            : 'never';
+        return `<div class="ready-item">
+            <div class="score-dot ${dotCls}" title="Score: ${l.score||0}"></div>
+            <div class="ri-name">
+                <strong>${l.full_name || '—'}</strong>
+                <span>${l.company_name || ''}</span>
+            </div>
+            <span class="prod-pill ${prodPill}" style="font-size:.68rem">${prod}</span>
+            <span class="step-badge ${stepCls}">Step ${l.next_step+1}: ${stepLbl}</span>
+            <div class="ch-icons">
+                <span class="ch-icon ${l.phone?'has':''}" title="Phone">📱</span>
+                <span class="ch-icon ${l.email?'has':''}" title="Email">📧</span>
+            </div>
+            <span style="font-size:.72rem;color:var(--text-muted);white-space:nowrap">last: ${last}</span>
+            <button class="send-btn" onclick="sendOne('${l.id}', this)">Send ▶</button>
+        </div>`;
+    }).join('');
+}
+
+function renderResponses(responses) {
+    if (!responses.length) {
+        document.getElementById('resp-list').innerHTML = '<div class="empty-msg">No responses yet — keep sending!</div>';
+        return;
+    }
+    document.getElementById('resp-list').innerHTML = responses.map(r => {
+        const prod = PRODUCT_LABELS[r.target_product] || r.target_product;
+        const cls = r.response_status === 'converted' ? 'resp-converted' : 'resp-interested';
+        const lbl = r.response_status === 'converted' ? '🏆 Converted' : '🙋 Interested';
+        const dt  = r.updated_at ? new Date(r.updated_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) : '';
+        return `<div class="resp-item">
+            <a href="/calling/lead/${r.id}" style="flex:1;min-width:0;text-decoration:none;color:inherit">
+                <strong style="display:block;font-size:.82rem">${r.full_name||'—'}</strong>
+                <span style="color:var(--text-muted);font-size:.75rem">${r.company_name||''} · ${prod}</span>
+            </a>
+            <span class="resp-badge ${cls}">${lbl}</span>
+            <span style="font-size:.72rem;color:var(--text-muted)">${dt}</span>
+        </div>`;
+    }).join('');
+}
+
+function renderActivity(acts) {
+    if (!acts.length) {
+        document.getElementById('act-list').innerHTML = '<div class="empty-msg">No outreach sent yet.</div>';
+        return;
+    }
+    document.getElementById('act-list').innerHTML = acts.map(a => {
+        const chCls = a.channel === 'whatsapp' ? 'act-wa' : 'act-em';
+        const chLbl = a.channel === 'whatsapp' ? 'WA' : 'Email';
+        const stCls = a.status === 'sent' || a.status === 'delivered' ? 'act-ok' : 'act-fail';
+        const ts = a.created_at ? new Date(a.created_at).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+        return `<div class="act-item">
+            <span class="act-ch ${chCls}">${chLbl}</span>
+            <span style="flex:1;color:var(--text-muted);font-family:monospace;font-size:.76rem">${a.template_key||'—'}</span>
+            <span class="${stCls}" style="font-size:.78rem;font-weight:600">${a.status}</span>
+            <span style="font-size:.7rem;color:var(--text-muted);white-space:nowrap">${ts}</span>
+        </div>`;
+    }).join('');
+}
+
+async function sendOne(leadId, btn) {
+    btn.disabled = true; btn.textContent = '⏳';
+    try {
+        const r = await fetch('/api/outreach/preview', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ lead_id: leadId, step: 0 }),
+        });
+        const d = await r.json();
+        if (r.ok) {
+            btn.textContent = '✓ Preview OK';
+            btn.style.color = '#16a34a'; btn.style.borderColor = '#16a34a';
+            alert(`Preview for ${d.company_name}:\n\nChannel: WhatsApp / Email\nTemplate: ${d.template_key}\n\n${d.wa_preview}`);
+        } else {
+            btn.textContent = '✗ Error'; btn.style.color = '#dc2626'; btn.style.borderColor = '#dc2626';
+        }
+    } catch(e) { btn.textContent = '✗'; }
+    setTimeout(() => { btn.disabled=false; btn.textContent='Send ▶'; btn.style.color=''; btn.style.borderColor=''; }, 3000);
+}
+
+async function sendAllReady() {
+    const product = document.getElementById('sel-product').value;
+    const btn = document.getElementById('btn-send-ready');
+    const isDry = btn.textContent.includes('Dry');
+    if (!isDry && !confirm(`LIVE SEND to all ${_data?.ready_count||'?'} ready leads. Confirm?`)) return;
+
+    btn.disabled = true; btn.textContent = '⏳ Running…';
+    try {
+        const r = await fetch('/api/outreach/send', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ product, tier:'all', limit:50, cooldown_days:3, dry_run: isDry }),
+        });
+        const d = await r.json();
+        if (r.ok) {
+            alert(`${isDry?'Dry run':'Live send'} complete.\n\nEligible: ${d.eligible}\nWA: ${d.sent_whatsapp}\nEmail: ${d.sent_email}\nFailed: ${d.failed}`);
+            if (!isDry) loadAll();
+        }
+    } finally {
+        btn.disabled = false;
+        btn.textContent = isDry ? '▶ Send to All (Dry Run)' : '▶ Send to All (LIVE)';
+    }
+}
+
+// Switch "Send All" between dry and live
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('btn-send-ready');
+    btn.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        const isDry = btn.textContent.includes('Dry');
+        btn.textContent = isDry ? '▶ Send to All (LIVE ⚠️)' : '▶ Send to All (Dry Run)';
+        btn.style.borderColor = isDry ? '#dc2626' : '';
+        btn.style.color = isDry ? '#dc2626' : '';
+    });
+});
+
+loadAll();
+</script>{% endraw %}
+{% endblock %}

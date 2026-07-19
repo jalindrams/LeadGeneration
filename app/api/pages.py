@@ -203,3 +203,11 @@ async def outreach_page(request: Request, current_user: User = Depends(require_a
         "request": request,
         "current_user": current_user
     })
+
+@router.get("/cadence", response_class=HTMLResponse)
+async def cadence_page(request: Request, current_user: User = Depends(require_admin)):
+    """Cadence Pipeline Dashboard — 3-touch sequence tracker."""
+    return templates.TemplateResponse("cadence.html", {
+        "request": request,
+        "current_user": current_user
+    })
