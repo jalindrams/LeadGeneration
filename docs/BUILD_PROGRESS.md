@@ -15,9 +15,9 @@ Plan: [SHIPLYSTIC_LEAD_ENGINE_PLAN.md](SHIPLYSTIC_LEAD_ENGINE_PLAN.md) · Measur
 | Step | State | Notes |
 |---|---|---|
 | Phase 0 spikes | done | report written |
-| 1a MS SQL support | in progress | models made SQL Server-compatible (Uuid, Unicode, filtered unique index); `.env` points at local SQL Server; Places counter shared with main checkout via `PLACES_USAGE_FILE`; DB created; connection verified. Next: write + run `scripts/migrate_pg_to_mssql.py` |
-| 1b store pipeline tables, scheduler, qualifier | pending | |
-| 1c sources, resolver, verifier, scorer, daily batch | pending | |
+| 1a MS SQL support | done | all 39 GET routes + writes verified on MS SQL; 8,323 leads copied; RCSI enabled on DB (needed for parallel workers) |
+| 1b store pipeline tables, scheduler, qualifier | done | app/pipeline/*, scripts/run_pipeline.py, scripts/pipeline_worker.py, run_pipeline_worker.bat |
+| 1c sources, resolver, verifier, scorer, daily batch | done | live run: tranco_in 148 stores -> 130 accepted; first batch 50/50 delivered (21 A, 29 B); 14 tests pass. commoncrawl still HTTP 504; tranco_com 0/1500 top .com; new_domains 2/159 |
 | 2 outcomes, source ranking, alerts, S5/S6 | pending | |
 | 3 spend ledger + paid providers (disabled) | pending | |
 | 4 ASP.NET Core 10 API | pending | |
