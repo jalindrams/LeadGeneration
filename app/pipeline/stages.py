@@ -161,8 +161,10 @@ def qualify_store(db: Session, store: Store) -> str:
 
 
 # ---------------------------------------------------------------- resolve
-def _save_contacts(db: Session, store: Store, contacts: list[dict], source: str):
-    have = {(c.phone, c.email) for c in store.contacts}
+def _save_contacts(db: Session, store: Store, contacts: list[dict], source: str, have: set | None = None):
+    """Insert new contacts; `have` is shared across calls so one phone is stored once per store."""
+    if have is None:
+        have = {(c.phone, c.email) for c in store.contacts}
     for c in contacts:
         key = (c.get("phone"), c.get("email"))
         if key in have:
@@ -236,8 +238,9 @@ def resolve_store(db: Session, store: Store, use_places: bool = True) -> str:
         found.append((places, "places"))
         has_mobile = bool(places)
     # Then one short write transaction
+    have = {(c.phone, c.email) for c in store.contacts}
     for cs, src in found:
-        _save_contacts(db, store, cs, source=src)
+        _save_contacts(db, store, cs, source=src, have=have)
     store.gstin = gstin
     if has_mobile:
         store.state = "resolved"

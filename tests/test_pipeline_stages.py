@@ -101,3 +101,17 @@ def test_wrong_number_never_reaccepted(db):
     run_all(db)
     st = db.query(Store).filter_by(domain="alpha.in").one()
     assert st.state == "rejected" and st.reject_reason == "no_clean_mobile"
+
+
+def test_same_phone_on_several_pages_is_stored_once(db, monkeypatch):
+    def many_pages(url, timeout=10, **kw):
+        status, html, u = fake_get(url, timeout)
+        if status == 404 and url.startswith("https://alpha.in/"):
+            return fake_get("https://alpha.in/")       # every contact page repeats the same number
+        return status, html, u
+    monkeypatch.setattr(fetch, "get", many_pages)
+    stages.add_candidates(db, [{"domain": "alpha.in"}], source="test")
+    run_all(db)
+    st = db.query(Store).filter_by(domain="alpha.in").one()
+    from app.pipeline.models import StoreContact
+    assert db.query(StoreContact).filter_by(store_id=st.id, phone="9812345601").count() == 1

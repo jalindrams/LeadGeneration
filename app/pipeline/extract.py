@@ -50,10 +50,16 @@ def grievance_officer_name(html: str) -> str | None:
     m = GRIEVANCE_RE.search(_strip_tags(html))
     if not m:
         return None
-    name = m.group(1).strip()
-    if name.lower().split()[0] in ("email", "contact", "phone", "the", "our", "address"):
+    stop = {"email", "e-mail", "contact", "phone", "mobile", "tel", "address", "designation", "the", "our",
+            "at", "for", "and", "can", "is", "on", "via", "number", "mail", "id", "who", "details"}
+    words = []
+    for w in m.group(1).split():
+        if w.lower().strip(".:,") in stop:
+            break
+        words.append(w)
+    if len(words) < 2:      # a real name has at least two words; one word is usually a heading
         return None
-    return name
+    return " ".join(words)
 
 
 def extract_gstin(html: str) -> str | None:

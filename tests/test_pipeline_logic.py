@@ -115,3 +115,9 @@ def test_accept_check_rules():
     assert accept_check(**{**ok, "suppressed": True}) == (False, "suppressed")
     assert accept_check(**{**ok, "is_indian": False}) == (False, "not_india")
     assert accept_check(**{**ok, "duplicate_domain": True}) == (False, "duplicate")
+
+
+def test_grievance_name_stops_at_field_labels():
+    assert grievance_officer_name("<p>Grievance Officer: Abhishek Sethia Email: a@x.in</p>") == "Abhishek Sethia"
+    assert grievance_officer_name("<p>Grievance Officer Name: Ms. Priya Nair Phone 98123</p>") == "Priya Nair"
+    assert grievance_officer_name("<p>Grievance Officer Contact Details</p>") is None
