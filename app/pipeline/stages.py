@@ -63,6 +63,11 @@ def add_candidates(db: Session, items: list[dict], source: str, product: str = "
                   platform=item.get("platform"), city=item.get("city"))
         db.add(s)
         db.flush()
+        for ph in item.get("paid_phones") or []:
+            p = normalize_mobile(ph)
+            if p:
+                db.add(StoreContact(store_id=s.id, phone=p, phone_type="paid", source=source,
+                                    source_url=f"{source} record for {dom}", confidence=70))
         if item.get("rating") is not None:
             db.add(StoreSignal(store_id=s.id, signal_type="review_rating",
                                value=str(item["rating"]), source_url=item.get("source_ref")))

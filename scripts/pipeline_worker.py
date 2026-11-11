@@ -30,7 +30,10 @@ log = get_logger("pipeline_worker")
 
 
 def job_discover():
+    from app.pipeline.sources import REGISTRY
     for src in runner.DISCOVERY_QUOTAS:
+        if hasattr(REGISTRY[src], "enabled") and not REGISTRY[src].enabled():
+            continue   # paid source switched off
         r = runner.run_discover(src)
         log.info("discover", source=src, status=r.status, new=r.discovered, error=(r.error or "")[:120])
 

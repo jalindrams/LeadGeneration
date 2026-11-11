@@ -25,6 +25,8 @@ DISCOVERY_QUOTAS = {
     "commoncrawl": 500,
     "new_domains": 600,
     "amazon_sellers": 30,
+    "serper_search": 200,   # paid: queries per run
+    "storeleads": 500,      # paid: stores per run
 }
 PROCESS_BATCH = int(os.getenv("ECOM_PROCESS_BATCH", "400"))
 WORKERS = int(os.getenv("ECOM_WORKERS", "8"))
@@ -129,6 +131,10 @@ def run_daily(sources: list[str] | None = None) -> dict:
     ensure_tables()
     report = {"discover": {}}
     for src in sources or list(DISCOVERY_QUOTAS):
+        mod = REGISTRY[src]
+        if hasattr(mod, "enabled") and not mod.enabled():
+            report["discover"][src] = {"status": "disabled"}
+            continue
         r = run_discover(src)
         report["discover"][src] = {"status": r.status, "new": r.discovered, "error": r.error}
     report["process"] = run_process()

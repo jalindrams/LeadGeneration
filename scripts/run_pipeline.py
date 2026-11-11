@@ -7,7 +7,10 @@ Shiplystic store pipeline CLI.
   python scripts/run_pipeline.py batch [--target 50]
   python scripts/run_pipeline.py daily                      # discover all + process + batch
   python scripts/run_pipeline.py status
-Sources: shopify_app_reviews, tranco_in, tranco_com, commoncrawl, new_domains, amazon_sellers
+  python scripts/run_pipeline.py import-contacts --file x.csv --provider easyleadz --cost 40
+  python scripts/run_pipeline.py spend | rank | sync-outcomes
+Sources: shopify_app_reviews, tranco_in, tranco_com, commoncrawl, new_domains, amazon_sellers,
+         serper_search (paid), storeleads (paid)
 """
 import argparse
 import json
@@ -48,7 +51,11 @@ def status():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["init", "discover", "process", "batch", "daily", "status"])
+    ap.add_argument("cmd", choices=["init", "discover", "process", "batch", "daily", "status",
+                                    "import-contacts", "spend", "rank", "sync-outcomes"])
+    ap.add_argument("--file")
+    ap.add_argument("--provider")
+    ap.add_argument("--cost", type=float, default=0)
     ap.add_argument("--source")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--target", type=int)
@@ -66,6 +73,27 @@ def main():
         print(json.dumps(runner.run_daily(), indent=1, default=str))
     elif a.cmd == "status":
         status()
+    elif a.cmd == "import-contacts":
+        from app.database import SessionLocal as S
+        from app.pipeline.paid.contacts_import import import_csv
+        db = S()
+        print(import_csv(db, a.file, a.provider, a.cost))
+        db.close()
+    elif a.cmd == "spend":
+        from app.database import SessionLocal as S
+        from app.pipeline.paid import ledger
+        db = S()
+        print(json.dumps(ledger.summary(db), indent=1))
+        db.close()
+    elif a.cmd == "rank":
+        from app.pipeline import ranking
+        print(json.dumps(ranking.recompute(), indent=1))
+    elif a.cmd == "sync-outcomes":
+        from app.database import SessionLocal as S
+        from app.pipeline.outcomes import sync_outcomes
+        db = S()
+        print(sync_outcomes(db, 0))
+        db.close()
     else:
         print("tables ready")
 
