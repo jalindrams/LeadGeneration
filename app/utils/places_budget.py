@@ -21,7 +21,9 @@ from app.utils.logger import get_logger
 
 log = get_logger("places_budget")
 
-USAGE_FILE = Path(__file__).resolve().parent.parent.parent / "exports" / "places_usage.json"
+import os as _os
+USAGE_FILE = Path(_os.getenv("PLACES_USAGE_FILE") or
+                  Path(__file__).resolve().parent.parent.parent / "exports" / "places_usage.json")
 _lock = threading.Lock()
 
 

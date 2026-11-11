@@ -18,6 +18,10 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "postgresql://micraft:micraft_pass@localhost:5432/micraft_leads"
+    # Read-only source used by scripts/migrate_pg_to_mssql.py (old production Postgres)
+    PG_SOURCE_URL: str = ""
+    # Shared Places counter file so every checkout respects one free-tier cap
+    PLACES_USAGE_FILE: str = ""
 
     # Google Maps — FREE TIER ONLY (owner rule: never pay).
     # Hard monthly cap on total Places API calls across the whole app;

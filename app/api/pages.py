@@ -2,6 +2,7 @@
 Micraft Growth Engine - Pages API
 Serves HTML templates for the Internal Lead Calling System.
 """
+from sqlalchemy import case
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -97,7 +98,8 @@ async def follow_ups_page(
         query = query.filter(Lead.assigned_to == current_user.id)
         
     leads = query.order_by(
-        Lead.follow_up_date.asc().nulls_last(),
+        case((Lead.follow_up_date.is_(None), 1), else_=0),  # NULLs last, portable
+        Lead.follow_up_date.asc(),
         Lead.lead_created_at.desc()
     ).all()
     

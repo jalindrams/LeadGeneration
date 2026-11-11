@@ -2,6 +2,7 @@
 Micraft Growth Engine - Calling System API
 Endpoints for tracking calls, dashboard stats, and CSV import.
 """
+from sqlalchemy import case
 from datetime import date, datetime
 import csv
 import io
@@ -11,7 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File
 from pydantic import BaseModel as _BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, cast, Date
 
 from app.database import get_db
 from app.models import Lead, CallLog, User, LeadFeedback, LeadAssignment
@@ -25,7 +26,7 @@ def get_dashboard_stats(db: Session = Depends(get_db), current_user: User = Depe
     """Get high-level stats for the calling dashboard."""
     today = date.today()
     
-    call_query = db.query(CallLog).filter(func.date(CallLog.called_at) == today)
+    call_query = db.query(CallLog).filter(cast(CallLog.called_at, Date) == today)
     lead_query = db.query(Lead)
     
     if current_user.role != "admin":
@@ -171,7 +172,8 @@ def get_follow_ups(db: Session = Depends(get_db)):
     leads = db.query(Lead).filter(
         Lead.call_status == "follow_up"
     ).order_by(
-        Lead.follow_up_date.asc().nulls_last(),
+        case((Lead.follow_up_date.is_(None), 1), else_=0),  # NULLs last, portable
+        Lead.follow_up_date.asc(),
         Lead.lead_created_at.desc()
     ).all()
     
