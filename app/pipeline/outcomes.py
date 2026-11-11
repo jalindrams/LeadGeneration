@@ -43,6 +43,15 @@ def apply_outcome(db: Session, lead: Lead, code: str, by: str = "caller") -> Non
     _, _, response, suppress = OUTCOMES[c]
     if response:
         lead.response_status = response
+    # Rescore: ecom leads keep the store-pipeline score with outcome adjustments;
+    # other products use the manufacturer scorer (which reads response_status).
+    if lead.target_product == "ecom":
+        delta = {"wrong_number": -100, "do_not_call": -100, "not_interested": -20,
+                 "already_with_competitor": -15, "interested": 10, "demo_booked": 15, "signed_up": 20}.get(c, 0)
+        lead.score = max(0, min(100, (lead.score or 0) + delta))
+    else:
+        from app.processing.scorer import score_and_qualify
+        lead.score = score_and_qualify(lead)["score"]
     if suppress and lead.phone:
         phone = lead.phone[-10:]
         exists = db.execute(select(Suppression.id).where(Suppression.kind == "phone",

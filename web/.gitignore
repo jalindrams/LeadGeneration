@@ -1,0 +1,7 @@
+bin/
+obj/
+*.user
+.vs/
+Api/wwwroot/
+client/node_modules/
+client/dist/
