@@ -22,4 +22,4 @@ Plan: [SHIPLYSTIC_LEAD_ENGINE_PLAN.md](SHIPLYSTIC_LEAD_ENGINE_PLAN.md) · Measur
 | 3 spend ledger + paid providers (disabled) | done | ledger with per-provider + total INR caps (default 0 = off); Serper discovery, Store Leads backfill (endpoint per docs, untested without key), CSV import for EasyLeadz-style owner mobiles, Places paid overflow via ledger. 25 tests pass |
 | 4 ASP.NET Core 10 API | done | web/Api: cookie auth (existing bcrypt hashes), leads, calling (Shiplystic outcomes), admin, metrics, pipeline, outreach, settings, command deck; Python jobs via whitelist. 11 integration tests vs MicraftLeads_Test DB pass; no vulnerable packages |
 | 4 React + Vite UI (all pages) | done | web/client builds into web/Api/wwwroot; 19 routes cover all 16 old pages + Daily target, Store pipeline, Suppression & spend. Verified in browser: login, command deck, call logging, target page; all 27 API reads 200 |
-| Final verification + report | pending | |
+| Final verification + report | done | 27 Python tests, 11 .NET tests, 0 lint errors, 39 old FastAPI routes OK on MS SQL. Runbook: docs/RUNBOOK.md. ALL PHASES COMPLETE |

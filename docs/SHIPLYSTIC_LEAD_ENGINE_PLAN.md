@@ -3,7 +3,7 @@
 **Goal:** deliver 50 call-ready ecommerce seller leads every working day for Shiplystic.com (courier/shipping aggregation), on free sources first; then add a paid layer (₹10–25K/month) to reach 100 leads/day or 50 higher-quality leads/day.
 
 **Audience:** the developer who will build it, and the owner who will approve decisions.
-**Date:** 2026-11-11 · **Status:** plan for approval, nothing built yet.
+**Date:** 2026-11-11 · **Status:** Phases 0–4 built and tested locally on 2026-11-11 (not deployed). How to run it: [RUNBOOK.md](RUNBOOK.md).
 
 ---
 
