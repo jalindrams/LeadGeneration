@@ -38,7 +38,9 @@ def ensure_tables():
 
 def run_discover(source: str, limit: int | None = None) -> SourceRun:
     mod = REGISTRY[source]
-    limit = limit or DISCOVERY_QUOTAS.get(source, 200)
+    if not limit:
+        from app.pipeline.ranking import quota_multiplier
+        limit = max(10, int(DISCOVERY_QUOTAS.get(source, 200) * quota_multiplier(source)))
     db = SessionLocal()
     run = SourceRun(source=source, stage="discover")
     db.add(run)
@@ -46,6 +48,8 @@ def run_discover(source: str, limit: int | None = None) -> SourceRun:
     try:
         items = mod.discover(db, limit=limit, source=source)
         run.discovered = stages.add_candidates(db, items, source=source)
+        if hasattr(mod, "commit_state"):
+            mod.commit_state()
         run.processed = len(items)
         run.status = "ok"
     except Exception as e:

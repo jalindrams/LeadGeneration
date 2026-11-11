@@ -306,7 +306,14 @@ def accept_store(db: Session, store: Store, wrong_numbers: set | None = None) ->
     best.is_primary = True
     store.score, store.tier = sc["score"], sc["tier"]
     email = next((c.email for c in store.contacts if c.email), None)
-    evidence = [f"Tier {sc['tier']} · score {sc['score']}", "; ".join(sc["why"]),
+    from app.pipeline.pitch import opening_line
+    review_app = None
+    if store.source == "shopify_app_reviews" and store.source_ref:
+        review_app = store.source_ref.split("apps.shopify.com/")[-1].split("/")[0]
+    opener = opening_line(store_name=store.name or store.domain, platform=store.platform,
+                          competitor_tools=tools, review_app=review_app, review_rating=rating,
+                          product_count=store.product_count, city=store.city)
+    evidence = [f"Opener: {opener}", f"Tier {sc['tier']} · score {sc['score']}", "; ".join(sc["why"]),
                 f"Phone ({best.phone_type}) from {best.source_url}",
                 f"Found via {store.source}" + (f": {store.source_ref}" if store.source_ref else "")]
     if store.source_note:

@@ -33,9 +33,21 @@ def _state() -> dict:
         return {}
 
 
+_pending: dict | None = None
+
+
 def _save_state(s: dict):
-    STATE_FILE.parent.mkdir(exist_ok=True)
-    STATE_FILE.write_text(json.dumps(s, indent=1))
+    """Deferred: the runner calls commit_state() only after the candidates are stored."""
+    global _pending
+    _pending = s
+
+
+def commit_state():
+    global _pending
+    if _pending is not None:
+        STATE_FILE.parent.mkdir(exist_ok=True)
+        STATE_FILE.write_text(json.dumps(_pending, indent=1))
+        _pending = None
 
 
 def parse_reviews(html: str) -> list[dict]:

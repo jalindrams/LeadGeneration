@@ -43,6 +43,18 @@ def discover(db, limit: int = 500, source: str = SOURCE) -> list[dict]:
         state[key] = page + 1
         if len(found) >= limit:
             break
-    STATE.parent.mkdir(exist_ok=True)
-    STATE.write_text(json.dumps(state))
+    global _pending
+    _pending = state
     return found[:limit]
+
+
+_pending: dict | None = None
+
+
+def commit_state():
+    """Called by the runner after candidates are stored, so a failed insert never skips work."""
+    global _pending
+    if _pending is not None:
+        STATE.parent.mkdir(exist_ok=True)
+        STATE.write_text(json.dumps(_pending))
+        _pending = None

@@ -9,7 +9,9 @@ Schedule (local time):
   05:15  discovery from every source (quotas in app/pipeline/runner.py)
   :40    every hour 06:40-22:40, process the backlog (qualify -> resolve -> accept)
   07:30  build today's batch of 50 and assign to callers; alert if short
-  Sun 21:10  recompute source ranking from call outcomes
+  Sun 21:10  recompute source ranking from call outcomes (throttles weak sources)
+  :05    every hour, apply call outcomes (wrong number / do-not-call -> suppression)
+  07:45  queue WhatsApp intros for Tier A (queued for a person to send; never sent here)
 Windows auto-start: see run_pipeline_worker.bat (register it in Task Scheduler "At log on").
 """
 import argparse
@@ -47,6 +49,31 @@ def job_batch():
         pass
 
 
+OUTCOME_CURSOR = os.path.join("exports", "outcome_sync.json")
+
+
+def job_outcomes():
+    from app.database import SessionLocal
+    from app.pipeline.outcomes import sync_outcomes
+    try:
+        since = json.load(open(OUTCOME_CURSOR))["last_id"]
+    except Exception:
+        since = 0
+    db = SessionLocal()
+    res = sync_outcomes(db, since)
+    db.close()
+    json.dump(res, open(OUTCOME_CURSOR, "w"))
+    log.info("outcomes", **{k: str(v) for k, v in res.items()})
+
+
+def job_queue_intros():
+    from app.database import SessionLocal
+    from app.pipeline.outreach_queue import queue_intros
+    db = SessionLocal()
+    log.info("intros_queued", count=queue_intros(db))   # queued only, never sent
+    db.close()
+
+
 def job_rank():
     try:
         from app.pipeline import ranking
@@ -69,6 +96,8 @@ def main():
     sched.add_job(job_process, "cron", hour="6-22", minute=40, id="process")
     sched.add_job(job_batch, "cron", hour=7, minute=30, id="batch")
     sched.add_job(job_rank, "cron", day_of_week="sun", hour=21, minute=10, id="rank")
+    sched.add_job(job_outcomes, "cron", minute=5, id="outcomes")
+    sched.add_job(job_queue_intros, "cron", hour=7, minute=45, id="intros")
     log.info("worker_started", jobs=[j.id for j in sched.get_jobs()])
     sched.start()
 

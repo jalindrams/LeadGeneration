@@ -59,6 +59,18 @@ def discover(db, limit: int = 1500, source: str = SOURCE_IN) -> list[dict]:
     with ThreadPoolExecutor(16) as ex:
         found = [x for x in ex.map(_probe, chunk) if x]
     state[source] = cursor + len(chunk)
-    STATE.parent.mkdir(exist_ok=True)
-    STATE.write_text(json.dumps(state))
+    global _pending
+    _pending = state
     return found
+
+
+_pending: dict | None = None
+
+
+def commit_state():
+    """Called by the runner after candidates are stored, so a failed insert never skips work."""
+    global _pending
+    if _pending is not None:
+        STATE.parent.mkdir(exist_ok=True)
+        STATE.write_text(json.dumps(_pending))
+        _pending = None

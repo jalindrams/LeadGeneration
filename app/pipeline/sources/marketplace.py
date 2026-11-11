@@ -30,7 +30,9 @@ def _get(url: str) -> str:
     time.sleep(random.uniform(4, 8))
     status, html, _ = fetch.get(url, timeout=20)
     low = html.lower()
-    if status in (503, 429) or "captcha" in low or "robot check" in low or "api-services-support@amazon" in low:
+    challenge = status == 200 and len(html) < 10_000   # tiny interstitial = bot challenge page
+    if (status in (503, 429) or challenge or "captcha" in low or "robot check" in low
+            or "api-services-support@amazon" in low):
         raise Blocked(f"Amazon blocked the request (HTTP {status}); stopping S6 run")
     return html if status == 200 else ""
 
@@ -79,6 +81,8 @@ def discover(db, limit: int = 30, source: str = SOURCE) -> list[dict]:
                     "note": f"Amazon.in seller in '{cat}'. Address: {info['address']}",
                     "city": info["city"],
                 })
-    except Blocked:
-        pass
+    except Blocked as e:
+        if not found:          # surface it as a failed run on the dashboard
+            raise
+        return found
     return found
