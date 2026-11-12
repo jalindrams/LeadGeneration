@@ -325,9 +325,9 @@ def cadence_pipeline(
         .filter(
             Lead.status != "synthetic",
             Lead.response_status.in_(["interested", "converted"]),
-            Lead.updated_at >= since_30d,
+            Lead.last_contacted_at >= since_30d,  # Lead has no updated_at column
         )
-        .order_by(Lead.updated_at.desc())
+        .order_by(Lead.last_contacted_at.desc())
         .limit(20)
         .all()
     )
@@ -340,7 +340,7 @@ def cadence_pipeline(
             "target_product": l.target_product,
             "response_status": l.response_status,
             "score":          l.score,
-            "updated_at":     l.updated_at.isoformat() if l.updated_at else None,
+            "updated_at":     l.last_contacted_at.isoformat() if l.last_contacted_at else None,
         }
         for l in resp_leads
     ]

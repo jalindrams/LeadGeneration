@@ -3,6 +3,7 @@ Micraft Growth Engine - Command Deck API
 
 GET /api/command/deck    All data for the daily ops dashboard in one call
 """
+from sqlalchemy import case
 
 from datetime import datetime, timedelta, date
 
@@ -97,7 +98,8 @@ def command_deck(db: Session = Depends(get_db), user=Depends(require_admin)):
         Lead.score >= 40,
     ).order_by(
         Lead.score.desc(),
-        Lead.follow_up_date.asc().nullslast(),
+        case((Lead.follow_up_date.is_(None), 1), else_=0),  # NULLs last, portable
+        Lead.follow_up_date.asc(),
         Lead.lead_created_at.desc(),
     ).limit(15)
 
@@ -239,7 +241,7 @@ def command_deck(db: Session = Depends(get_db), user=Depends(require_admin)):
         {
             "type":       "call",
             "lead_id":    str(f.lead_id),
-            "outcome":    f.call_outcome,
+            "outcome":    f.status,
             "notes":      (f.notes or "")[:60],
             "created_at": f.created_at.isoformat() if f.created_at else None,
         }

@@ -10,7 +10,8 @@ aiofiles==24.1.0
 
 # Database
 sqlalchemy==2.0.35
-psycopg2-binary==2.9.11
+psycopg2-binary==2.9.11  # read-only source for scripts/migrate_pg_to_mssql.py
+pyodbc==5.2.0
 alembic==1.13.2
 
 # HTTP
@@ -32,3 +33,7 @@ structlog==24.4.0
 
 # Utilities
 uuid6==2024.7.10
+
+# Pipeline scheduler + tests
+apscheduler==3.10.4
+pytest==8.3.3
