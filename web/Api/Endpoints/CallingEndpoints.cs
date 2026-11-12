@@ -45,6 +45,29 @@ public static class CallingEndpoints
             return Results.Ok(new { total, leads = rows.Select(l => LeadsEndpoints.Row(l, names)) });
         });
 
+        // Call mode: the single next lead this caller should dial.
+        // Order: due follow-ups, then new leads by score, then no-answer retries (3h+ ago, under 4 tries).
+        // If the caller's own queue is empty, one unassigned lead is claimed atomically, so two
+        // callers can never be handed the same lead.
+        g.MapGet("/next", async (string? skip, string? product, AppDb db, ClaimsPrincipal user) =>
+        {
+            var me = user.Id();
+            var skipIds = (skip ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                      .Select(s => Guid.TryParse(s, out var x) ? x : Guid.Empty)
+                                      .Where(x => x != Guid.Empty).Take(200).ToList();
+            var (id, reason) = await NextFor(db, me, skipIds, product);
+            if (id == null)
+            {
+                id = await ClaimFromPool(db, me, skipIds, product);
+                reason = id == null ? null : "new";
+            }
+            var counts = await QueueCounts(db, me, product);
+            var start = DateTime.Today;
+            var name = user.Name();
+            var callsToday = await db.CallLogs.CountAsync(c => c.CalledAt >= start && c.CalledBy == name);
+            return Results.Ok(new { leadId = id, reason, counts, callsToday });
+        });
+
         g.MapGet("/dashboard", async (AppDb db, ClaimsPrincipal user) =>
         {
             var start = DateTime.Today; var end = start.AddDays(1);
@@ -83,6 +106,11 @@ public static class CallingEndpoints
                 body = body with { FollowUpDate = DateOnly.FromDateTime(DateTime.Today.AddDays(2)) };
 
             var now = DateTime.Now;
+            // A double tap or a retried request must not log the same call twice.
+            var recent = now.AddSeconds(-20);
+            var caller = user.Name();
+            if (await db.CallLogs.AnyAsync(c => c.LeadId == id && c.CalledBy == caller && c.CallStatus == o.Code && c.CalledAt >= recent))
+                return Results.Ok(new { lead.Id, lead.CallStatus, lead.ResponseStatus, lead.FollowUpDate, lead.CallCount, duplicate = true });
             db.CallLogs.Add(new CallLog { LeadId = id, CalledAt = now, CallStatus = o.Code, ResponseType = o.Label,
                                           Remarks = body.Remarks, DurationNote = body.DurationNote, CalledBy = user.Name() });
             lead.CallStatus = o.LeadCallStatus;
@@ -189,6 +217,64 @@ public static class CallingEndpoints
             await db.SaveChangesAsync();
             return Results.Ok();
         }).RequireAuthorization("admin");
+    }
+
+    static IQueryable<Lead> Callable(AppDb db, string? product) =>
+        db.Leads.Where(l => l.Status != "synthetic" && l.Phone != null && l.Phone != ""
+                            && (string.IsNullOrEmpty(product) || l.TargetProduct == product));
+
+    static async Task<(Guid?, string?)> NextFor(AppDb db, int me, List<Guid> skip, string? product)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var retryBefore = DateTime.Now.AddHours(-3);
+        var mine = Callable(db, product).AsNoTracking().Where(l => l.AssignedTo == me && !skip.Contains(l.Id));
+
+        var due = await mine.Where(l => l.CallStatus == "follow_up" && (l.FollowUpDate == null || l.FollowUpDate <= today))
+                            .OrderBy(l => l.FollowUpDate).ThenByDescending(l => l.Score).Select(l => (Guid?)l.Id).FirstOrDefaultAsync();
+        if (due != null) return (due, "follow_up");
+        var fresh = await mine.Where(l => l.CallStatus == null || l.CallStatus == "new")
+                              .OrderByDescending(l => l.Score).ThenBy(l => l.AssignedAt).Select(l => (Guid?)l.Id).FirstOrDefaultAsync();
+        if (fresh != null) return (fresh, "new");
+        var retry = await mine.Where(l => l.CallStatus == "no_answer" && (l.CallCount ?? 0) < 4
+                                          && (l.LastContactedAt == null || l.LastContactedAt < retryBefore))
+                              .OrderBy(l => l.LastContactedAt).Select(l => (Guid?)l.Id).FirstOrDefaultAsync();
+        return retry != null ? (retry, "retry") : (null, null);
+    }
+
+    /// <summary>Claims one unassigned new lead. The conditional UPDATE makes the claim atomic.</summary>
+    static async Task<Guid?> ClaimFromPool(AppDb db, int me, List<Guid> skip, string? product)
+    {
+        var candidates = await Callable(db, product).AsNoTracking()
+            .Where(l => l.AssignedTo == null && (l.CallStatus == null || l.CallStatus == "new") && !skip.Contains(l.Id))
+            .OrderByDescending(l => l.Score).Select(l => l.Id).Take(5).ToListAsync();
+        foreach (var cid in candidates)
+        {
+            var now = DateTime.Now;
+            var won = await db.Leads.Where(l => l.Id == cid && l.AssignedTo == null)
+                                    .ExecuteUpdateAsync(s => s.SetProperty(l => l.AssignedTo, me).SetProperty(l => l.AssignedAt, now));
+            if (won == 1)
+            {
+                db.LeadAssignments.Add(new LeadAssignment { LeadId = cid, AssignedTo = me, AssignedBy = me, AssignedAt = now });
+                await db.SaveChangesAsync();
+                return cid;
+            }
+        }
+        return null;
+    }
+
+    static async Task<object> QueueCounts(AppDb db, int me, string? product)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var retryBefore = DateTime.Now.AddHours(-3);
+        var mine = Callable(db, product).AsNoTracking().Where(l => l.AssignedTo == me);
+        return new
+        {
+            due = await mine.CountAsync(l => l.CallStatus == "follow_up" && (l.FollowUpDate == null || l.FollowUpDate <= today)),
+            fresh = await mine.CountAsync(l => l.CallStatus == null || l.CallStatus == "new"),
+            retry = await mine.CountAsync(l => l.CallStatus == "no_answer" && (l.CallCount ?? 0) < 4
+                                              && (l.LastContactedAt == null || l.LastContactedAt < retryBefore)),
+            pool = await Callable(db, product).CountAsync(l => l.AssignedTo == null && (l.CallStatus == null || l.CallStatus == "new")),
+        };
     }
 }
 

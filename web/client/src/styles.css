@@ -142,3 +142,27 @@ label.field { display: grid; gap: 4px; font-size: 12px; color: var(--ink-3); }
 pre.log { background: var(--surface-2); padding: 10px; border-radius: 6px; max-height: 360px; overflow: auto; font-size: 12px; white-space: pre-wrap; }
 .login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
 .login .card { width: 100%; max-width: 360px; }
+
+/* Call mode */
+.cm-counts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 12px; font-size: 14px; color: var(--ink-2); }
+.cm-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; transition: opacity .15s; }
+@media (max-width: 900px) { .cm-grid { grid-template-columns: 1fr; } }
+.cm-company { font-size: 22px; margin: 10px 0 2px; }
+.cm-dial { display: block; margin: 14px 0 4px; padding: 14px 16px; border-radius: var(--radius); background: var(--good); color: #fff; font-size: 24px; font-weight: 700; text-align: center; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.cm-dial:hover { text-decoration: none; filter: brightness(1.05); }
+.cm-dial.off { background: var(--surface-2); color: var(--ink-3); font-size: 16px; }
+.cm-lead h3, .cm-log h3 { font-size: 13px; margin: 14px 0 6px; color: var(--ink-2); }
+.cm-history { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; }
+.cm-outcomes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cm-out { justify-content: flex-start; padding: 12px; font-size: 14px; text-align: left; min-height: 48px; border-left-width: 4px; }
+.cm-out.good { border-left-color: var(--good); }
+.cm-out.bad { border-left-color: var(--bad); }
+.cm-out.neutral { border-left-color: var(--ink-3); }
+.cm-out.sel { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.cm-key { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 4px; background: var(--surface-2); color: var(--ink-3); font-size: 11px; flex: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { border-radius: 999px; padding: 6px 12px; font-size: 13px; }
+.chip.sel { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.cm-save { width: 100%; justify-content: center; margin-top: 14px; padding: 12px; font-size: 16px; font-weight: 600; }
+.cm-save:disabled { opacity: .55; cursor: default; }
+.cm-empty p { max-width: 60ch; }

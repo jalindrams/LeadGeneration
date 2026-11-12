@@ -68,6 +68,72 @@ public class ApiTests : IClassFixture<ApiFactory>
         return c;
     }
 
+    static async Task<JsonElement> Next(HttpClient c, string extra = "")
+    {
+        var r = await c.GetAsync("/api/calling/next?product=ecom" + extra);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        return await r.Content.ReadFromJsonAsync<JsonElement>();
+    }
+
+    [Fact]
+    public async Task Next_gives_own_lead_then_claims_from_pool_then_runs_out()
+    {
+        var rep = await Login("t_rep");
+        var n1 = await Next(rep);
+        Assert.Equal(_f.RepLead.ToString(), n1.GetProperty("leadId").GetString());
+        Assert.Equal("new", n1.GetProperty("reason").GetString());
+
+        // Own lead skipped -> the unassigned lead is claimed for this rep
+        var n2 = await Next(rep, "&skip=" + _f.RepLead);
+        Assert.Equal(_f.AdminLead.ToString(), n2.GetProperty("leadId").GetString());
+        using (var scope = _f.Services.CreateScope())
+            Assert.Equal(_f.RepId, scope.ServiceProvider.GetRequiredService<AppDb>().Leads.Single(l => l.Id == _f.AdminLead).AssignedTo);
+
+        // The other rep can never be handed a lead that is already taken
+        var rep2 = await Login("t_rep2");
+        var o = await Next(rep2, "&skip=" + _f.OtherLead);
+        Assert.Equal(JsonValueKind.Null, o.GetProperty("leadId").ValueKind);
+    }
+
+    [Fact]
+    public async Task Parallel_next_calls_never_claim_the_same_lead_twice()
+    {
+        var a = await Login("t_rep"); var b = await Login("t_rep2");
+        var skipOwn = $"&skip={_f.RepLead},{_f.OtherLead}";
+        var results = await Task.WhenAll(Next(a, skipOwn), Next(b, skipOwn), Next(a, skipOwn), Next(b, skipOwn));
+        var ids = results.Select(r => r.GetProperty("leadId")).Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()).ToList();
+        using var scope = _f.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDb>();
+        Assert.Single(db.LeadAssignments.Where(x => x.LeadId == _f.AdminLead).ToList());
+        var owner = db.Leads.Single(l => l.Id == _f.AdminLead).AssignedTo;
+        Assert.Contains(owner, new int?[] { _f.RepId, _f.Rep2Id });
+    }
+
+    [Fact]
+    public async Task Next_puts_due_follow_up_before_new_and_double_save_logs_once()
+    {
+        var rep = await Login("t_rep");
+        using (var scope = _f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDb>();
+            db.Leads.Add(new Lead { Id = Guid.NewGuid(), CompanyName = "Due Co", Phone = "9876500011", Source = "ecom:test",
+                TargetProduct = "ecom", Status = "qualified", Score = 10, CallStatus = "follow_up", AssignedTo = _f.RepId,
+                FollowUpDate = DateOnly.FromDateTime(DateTime.Today.AddDays(-1)), LeadCreatedAt = DateTime.Now, ScrapedAt = DateTime.Now });
+            db.SaveChanges();
+        }
+        var n = await Next(rep);
+        Assert.Equal("follow_up", n.GetProperty("reason").GetString());
+        var id = n.GetProperty("leadId").GetString();
+
+        var body = new { outcome = "not_interested", remarks = "Low order volume" };
+        var r1 = await rep.PostAsJsonAsync($"/api/calling/leads/{id}/call", body);
+        var r2 = await rep.PostAsJsonAsync($"/api/calling/leads/{id}/call", body);
+        Assert.Equal(HttpStatusCode.OK, r1.StatusCode); Assert.Equal(HttpStatusCode.OK, r2.StatusCode);
+        using var s2 = _f.Services.CreateScope();
+        Assert.Single(s2.ServiceProvider.GetRequiredService<AppDb>().CallLogs.Where(c => c.LeadId == Guid.Parse(id!)).ToList());
+        Assert.Equal(_f.RepLead.ToString(), (await Next(rep)).GetProperty("leadId").GetString());
+    }
+
     [Fact]
     public async Task Everything_requires_login()
     {

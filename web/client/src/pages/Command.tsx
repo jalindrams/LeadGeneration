@@ -10,7 +10,7 @@ export default function Command() {
   return (
     <Page title={`Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, ${me?.fullName.split(' ')[0]}`}
           sub={new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
-          actions={<Link className="btn primary" to="/calls">Start calling</Link>}>
+          actions={<Link className="btn primary" to="/call">Start calling</Link>}>
       <Loading error={error} loading={loading && !data} />
       {k && (
         <>

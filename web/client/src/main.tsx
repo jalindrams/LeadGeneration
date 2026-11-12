@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './auth'
 import Login from './pages/Login'
 import Command from './pages/Command'
 import Workboard from './pages/Workboard'
+import CallMode from './pages/CallMode'
 import LeadDetail from './pages/LeadDetail'
 import FollowUps from './pages/FollowUps'
 import RepDashboard from './pages/RepDashboard'
@@ -25,7 +26,7 @@ import Settings from './pages/Settings'
 
 type NavItem = [string, string, boolean?]   // path, label, adminOnly
 const NAV: [string, NavItem[]][] = [
-  ['Today', [['/', 'Command deck'], ['/calls', 'My calls'], ['/follow-ups', 'Follow-ups'], ['/dashboard', 'My numbers']]],
+  ['Today', [['/', 'Command deck'], ['/call', 'Start calling'], ['/calls', 'My call list'], ['/follow-ups', 'Follow-ups'], ['/dashboard', 'My numbers']]],
   ['Leads', [['/leads', 'All leads'], ['/import', 'Import CSV']]],
   ['Shiplystic engine', [['/target', 'Daily target', true], ['/pipeline', 'Store pipeline', true], ['/controls', 'Suppression & spend', true]]],
   ['Team', [['/admin', 'Overview', true], ['/admin/assign', 'Assign leads', true], ['/admin/users', 'Users', true], ['/review', 'Review queue', true]]],
@@ -82,6 +83,7 @@ function App() {
     <Shell>
       <Routes>
         <Route path="/" element={<Command />} />
+        <Route path="/call" element={<CallMode />} />
         <Route path="/calls" element={<Workboard />} />
         <Route path="/follow-ups" element={<FollowUps />} />
         <Route path="/dashboard" element={<RepDashboard />} />

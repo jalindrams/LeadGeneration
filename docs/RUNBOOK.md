@@ -48,6 +48,14 @@ The Python FastAPI app (`app/main.py`, Jinja pages) still works against MS SQL a
 
 Manual equivalents: `python scripts/run_pipeline.py daily | discover --source X | process | batch | status | rank | sync-outcomes | spend`.
 
+## 3b. Calling (for callers)
+
+Open **Start calling** (`/call`). It shows one lead at a time: due follow-ups first, then new leads by score, then
+no-answer retries (3 hours after the last try, up to 4 tries). Tap the green number to dial, tap what happened (keys 1–0),
+tap a reason, and press **Save & next lead** (Ctrl+Enter). When a caller's own list is empty, the next unassigned lead is
+claimed for them automatically; the claim is atomic, so two callers never get the same lead. A double-tapped save is
+logged once. If the network drops, the entry stays on screen until it is saved.
+
 ## 4. What a lead must have to be delivered
 
 Indian store, physical goods, a 10-digit Indian mobile found on the store's own pages (or Places / a paid source) with
