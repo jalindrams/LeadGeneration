@@ -4,6 +4,7 @@ using Api.Data;
 using Api.Endpoints;
 using Api.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,11 +19,20 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
 });
 
+// Keep login cookies valid across IIS app-pool recycles / redeploys.
+var keyDir = builder.Configuration["DataProtection:KeyDir"];
+if (!string.IsNullOrWhiteSpace(keyDir))
+    builder.Services.AddDataProtection()
+        .SetApplicationName("MicraftLeadEngine")
+        .PersistKeysToFileSystem(new DirectoryInfo(keyDir));
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(o =>
     {
         o.Cookie.Name = "shiplystic_session";
         o.Cookie.HttpOnly = true;
+        o.Cookie.SecurePolicy = builder.Configuration.GetValue<bool>("Auth:SecureCookie")
+            ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
         o.Cookie.SameSite = SameSiteMode.Strict;
         o.ExpireTimeSpan = TimeSpan.FromDays(7);
         o.SlidingExpiration = true;
