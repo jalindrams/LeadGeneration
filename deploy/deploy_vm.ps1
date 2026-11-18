@@ -61,8 +61,9 @@ if ($LASTEXITCODE) { throw 'db setup failed' }
 Write-Host '4/7 config + tables + admin user'
 $odbcConn = "mssql+pyodbc://leadengine:$sqlPw@localhost/MicraftLeads?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes"
 if (-not (Test-Path "$app\.env")) {
-  Set-Content "$app\.env" "DATABASE_URL=$odbcConn`r`nPLACES_MONTHLY_CALL_CAP=4000`r`nPLAYWRIGHT_BROWSERS_PATH=$root\browsers`r`nCSV_EXPORT_DIR=$app\exports"
+  Set-Content "$app\.env" "DATABASE_URL=$odbcConn`r`nPLACES_MONTHLY_CALL_CAP=4000`r`nCSV_EXPORT_DIR=$app\exports"
 }
+(Get-Content "$app\.env") | Where-Object { $_ -notmatch '^PLAYWRIGHT' } | Set-Content "$app\.env"
 New-Item -ItemType Directory -Force "$app\exports", "$app\logs" | Out-Null
 Push-Location $app
 & $py scripts\run_pipeline.py init
