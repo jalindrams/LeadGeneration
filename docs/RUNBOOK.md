@@ -103,3 +103,14 @@ The .NET tests need the `MicraftLeads_Test` database with the schema created by 
 - Data-protection features (opt-out endpoint, retention purge) not built; the suppression list covers do-not-call.
 - Settings "test WhatsApp/email" buttons from the old app were not ported (they send real messages).
 - No call has been made from these leads yet, so connect and interest rates are unknown.
+
+## 9. Deploying on a shared Windows VM (IIS)
+
+Done for the Micraft VM (165.99.253.23) as a **separate site** next to the live Shiplystic sites:
+
+- Prereqs on the VM: .NET 10 Hosting Bundle, ODBC Driver 18, SQL Server, Python 3.13 (a portable "embeddable" copy in `C:\LeadEngine\python` works when the Windows Installer is busy).
+- One command: `deploy/deploy_vm.ps1` (run as Administrator). It downloads the code and the API build (branch `lead-engine-deploy`, file `api.zip`), creates database `MicraftLeads` (row versioning on) with SQL login `leadengine`, writes `.env` and `appsettings.Production.json`, creates IIS site `LeadEngine` on port 8090 (own app pool, no managed code), opens firewall port 8090, and registers the scheduled task `LeadEngine Worker` (at startup, SYSTEM) that runs `scripts/pipeline_worker.py`.
+- Generated passwords are in `C:\LeadEngine\data\secrets.txt` (SQL and first admin login). Change the admin password after first sign-in.
+- Layout: `C:\LeadEngine\site` (API + UI), `app` (Python pipeline, `.env`, `exports\pipeline_worker.log`), `data\keys` (login-cookie keys, survive recycles), `python`, `browsers`.
+- Update: rebuild locally (`npm run build`, `dotnet publish web/Api -c Release -r win-x64`), publish `api.zip` to the `lead-engine-deploy` branch, re-run the script.
+- Login cookie is HTTP-only on port 8090. Put an HTTPS binding on the site and set `Auth:SecureCookie` to `true` in `appsettings.Production.json`.
