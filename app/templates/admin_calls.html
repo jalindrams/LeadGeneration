@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block title %}Call Reports — Micraft Admin{% endblock %}
+
+{% block content %}
+<style>
+.page-header { margin-bottom: 1.5rem; }
+.page-header h2 { font-size: 1.4rem; margin: 0 0 4px 0; }
+
+.section-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 1.25rem; }
+.section-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.section-header h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+
+.rep-table, .calls-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.rep-table th, .calls-table th { text-align: left; padding: 10px 16px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 1px solid var(--border); background: var(--bg); }
+.rep-table td, .calls-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.rep-table tr:hover td, .calls-table tr:hover td { background: rgba(99,102,241,0.04); }
+.rep-table tr.selected td { background: rgba(99,102,241,0.08); }
+
+.rep-name-cell { font-weight: 600; }
+.num-cell { text-align: right; font-variant-numeric: tabular-nums; }
+.num-hot { color: #16a34a; font-weight: 600; }
+.num-cold { color: #dc2626; }
+.num-wrong { color: #7c3aed; }
+.num-noanswer { color: #d97706; }
+
+.bar-bg { background: var(--border); border-radius: 4px; height: 6px; width: 100px; display: inline-block; vertical-align: middle; }
+.bar-fill { height: 6px; border-radius: 4px; background: var(--primary); }
+
+.badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+.badge-interested { background: #dcfce7; color: #166534; }
+.badge-not_interested { background: #fee2e2; color: #991b1b; }
+.badge-no_answer { background: #fef3c7; color: #92400e; }
+.badge-closed { background: #e0e7ff; color: #3730a3; }
+.badge-follow_up { background: #dbeafe; color: #1e40af; }
+.badge-new { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+
+.filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.filter-select { padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-main); font-size: 0.85rem; }
+.filter-select:focus { outline: none; border-color: var(--primary); }
+
+.pagination { display: flex; gap: 8px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-muted); }
+.page-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); cursor: pointer; font-size: 0.82rem; color: var(--text-main); }
+.page-btn:hover { border-color: var(--primary); color: var(--primary); }
+.page-btn:disabled { opacity: 0.4; cursor: default; }
+
+.click-hint { font-size: 0.75rem; color: var(--text-muted); font-style: italic; }
+.rep-row { cursor: pointer; }
+</style>
+
+<div class="page-header">
+    <h2>📞 Call Reports</h2>
+    <p class="text-muted" style="margin: 0; font-size: 0.87rem;">Per-rep call summary and full call log. Click a rep row to filter the log below.</p>
+</div>
+
+<!-- Per-Rep Summary -->
+<div class="section-card">
+    <div class="section-header">
+        <h3>Team Summary</h3>
+        <span class="click-hint">Click a rep to see their calls below</span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="rep-table">
+            <thead>
+                <tr>
+                    <th>Rep</th>
+                    <th class="num-cell">Total Calls</th>
+                    <th class="num-cell">🔥 Hot</th>
+                    <th class="num-cell">❄️ Cold</th>
+                    <th class="num-cell">📵 No Answer</th>
+                    <th class="num-cell">❌ Wrong</th>
+                    <th class="num-cell">📅 Follow Up</th>
+                    <th>Hot Rate</th>
+                </tr>
+            </thead>
+            <tbody id="rep-tbody">
+                <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted)">Loading…</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Full Call Log -->
+<div class="section-card">
+    <div class="section-header">
+        <h3 id="log-title">All Calls</h3>
+        <div class="filter-bar">
+            <select class="filter-select" id="filter-rep" onchange="applyFilters()">
+                <option value="">All Reps</option>
+            </select>
+            <select class="filter-select" id="filter-status" onchange="applyFilters()">
+                <option value="">All Outcomes</option>
+                <option value="interested">🔥 Hot (Interested)</option>
+                <option value="not_interested">❄️ Cold (Not Interested)</option>
+                <option value="no_answer">📵 No Answer</option>
+                <option value="closed">❌ Wrong Contact</option>
+                <option value="follow_up">📅 Follow Up</option>
+            </select>
+            <button class="page-btn" onclick="clearFilters()">✕ Clear</button>
+        </div>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="calls-table">
+            <thead>
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Rep</th>
+                    <th>Company</th>
+                    <th>Contact</th>
+                    <th>Phone</th>
+                    <th>Outcome</th>
+                    <th>Duration</th>
+                    <th>Remarks</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="log-tbody">
+                <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted)">Loading…</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="pagination">
+        <button class="page-btn" id="btn-prev" onclick="changePage(-1)" disabled>← Prev</button>
+        <span id="page-info">Page 1</span>
+        <button class="page-btn" id="btn-next" onclick="changePage(1)">Next →</button>
+        <span id="total-info" style="margin-left:auto;"></span>
+    </div>
+</div>
+
+<script>
+let currentPage = 1;
+const perPage = 50;
+let selectedRep = '';
+let selectedStatus = '';
+let allReps = [];
+
+const STATUS_LABELS = {
+    interested: { label: 'Hot', cls: 'badge-interested' },
+    not_interested: { label: 'Cold', cls: 'badge-not_interested' },
+    no_answer: { label: 'No Answer', cls: 'badge-no_answer' },
+    closed: { label: 'Wrong', cls: 'badge-closed' },
+    follow_up: { label: 'Follow Up', cls: 'badge-follow_up' },
+    new: { label: 'New', cls: 'badge-new' },
+};
+
+async function loadRepSummary() {
+    const r = await fetch('/api/calling/admin/rep-summary');
+    if (!r.ok) return;
+    const rows = await r.json();
+    allReps = rows;
+
+    // Populate rep filter dropdown
+    const sel = document.getElementById('filter-rep');
+    rows.forEach(rep => {
+        const opt = document.createElement('option');
+        opt.value = rep.rep_name;
+        opt.textContent = rep.rep_name;
+        sel.appendChild(opt);
+    });
+
+    const maxTotal = Math.max(...rows.map(r => r.total), 1);
+    const tbody = document.getElementById('rep-tbody');
+
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted)">No call data yet</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = rows.map(rep => {
+        const hotRate = rep.total ? Math.round((rep.interested / rep.total) * 100) : 0;
+        const barPct = Math.round((rep.total / maxTotal) * 100);
+        return `
+        <tr class="rep-row" onclick="selectRep('${rep.rep_name.replace(/'/g, "\\'")}')">
+            <td class="rep-name-cell">👤 ${rep.rep_name}</td>
+            <td class="num-cell">
+                ${rep.total.toLocaleString()}
+                <div class="bar-bg" style="margin-left:8px;"><div class="bar-fill" style="width:${barPct}%"></div></div>
+            </td>
+            <td class="num-cell num-hot">${rep.interested}</td>
+            <td class="num-cell num-cold">${rep.not_interested}</td>
+            <td class="num-cell num-noanswer">${rep.no_answer}</td>
+            <td class="num-cell num-wrong">${rep.closed}</td>
+            <td class="num-cell">${rep.follow_up}</td>
+            <td style="font-size:0.82rem;">${hotRate}%</td>
+        </tr>`;
+    }).join('');
+}
+
+function selectRep(repName) {
+    selectedRep = repName;
+    currentPage = 1;
+    document.getElementById('filter-rep').value = repName;
+    document.getElementById('log-title').textContent = `Calls by ${repName}`;
+    // Highlight selected row
+    document.querySelectorAll('.rep-row').forEach(r => r.classList.remove('selected'));
+    const rows = document.querySelectorAll('.rep-row');
+    rows.forEach(r => { if (r.querySelector('.rep-name-cell').textContent.includes(repName)) r.classList.add('selected'); });
+    loadCallLog();
+}
+
+function applyFilters() {
+    selectedRep = document.getElementById('filter-rep').value;
+    selectedStatus = document.getElementById('filter-status').value;
+    currentPage = 1;
+    const parts = [];
+    if (selectedRep) parts.push(selectedRep);
+    if (selectedStatus && STATUS_LABELS[selectedStatus]) parts.push(STATUS_LABELS[selectedStatus].label);
+    document.getElementById('log-title').textContent = parts.length ? `Calls — ${parts.join(' · ')}` : 'All Calls';
+    loadCallLog();
+}
+
+function clearFilters() {
+    selectedRep = '';
+    selectedStatus = '';
+    currentPage = 1;
+    document.getElementById('filter-rep').value = '';
+    document.getElementById('filter-status').value = '';
+    document.getElementById('log-title').textContent = 'All Calls';
+    document.querySelectorAll('.rep-row').forEach(r => r.classList.remove('selected'));
+    loadCallLog();
+}
+
+async function loadCallLog() {
+    const tbody = document.getElementById('log-tbody');
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted)">Loading…</td></tr>';
+
+    const params = new URLSearchParams({ page: currentPage, per_page: perPage });
+    if (selectedRep) params.append('rep_name', selectedRep);
+    if (selectedStatus) params.append('status_filter', selectedStatus);
+
+    const r = await fetch(`/api/calling/admin/all-calls?${params}`);
+    const d = await r.json();
+
+    document.getElementById('total-info').textContent = `${d.total.toLocaleString()} calls`;
+    document.getElementById('page-info').textContent = `Page ${d.page}`;
+    document.getElementById('btn-prev').disabled = d.page <= 1;
+    document.getElementById('btn-next').disabled = d.page * perPage >= d.total;
+
+    if (!d.calls.length) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">No calls found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = d.calls.map(c => {
+        const st = STATUS_LABELS[c.call_status] || { label: c.call_status, cls: 'badge-new' };
+        const dt = c.called_at ? new Date(c.called_at).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+        const remarks = (c.remarks || '').replace(/"/g, '&quot;');
+        return `
+        <tr>
+            <td style="font-size:0.82rem;color:var(--text-muted);white-space:nowrap">${dt}</td>
+            <td style="font-size:0.82rem;font-weight:500">${c.called_by || '—'}</td>
+            <td style="font-weight:600">${c.company_name || '—'}</td>
+            <td style="font-size:0.82rem;color:var(--text-muted)">${c.contact_name || '—'}</td>
+            <td style="font-size:0.82rem">${c.phone || '—'}</td>
+            <td><span class="badge ${st.cls}">${st.label}</span></td>
+            <td style="font-size:0.82rem;color:var(--text-muted)">${c.duration_note || '—'}</td>
+            <td style="max-width:200px;font-size:0.82rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${remarks}">${c.remarks || '—'}</td>
+            <td><a href="/calling/lead/${c.lead_id}" style="font-size:0.8rem;color:var(--primary);text-decoration:none;">View →</a></td>
+        </tr>`;
+    }).join('');
+}
+
+function changePage(dir) {
+    currentPage += dir;
+    loadCallLog();
+}
+
+loadRepSummary();
+loadCallLog();
+</script>
+{% endblock %}

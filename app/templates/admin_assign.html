@@ -66,6 +66,11 @@
             <input type="checkbox" id="filter-reassign" onchange="updatePreview()" style="width:18px; height:18px;">
             <span>Reassign mode — also move leads already assigned to other reps</span>
         </label>
+        <div class="form-group" style="margin-top: 14px; display: flex; align-items: center; gap: 14px;">
+            <label style="font-size:0.9rem; white-space:nowrap; margin:0;">Max leads per rep</label>
+            <input type="number" id="filter-max-per-rep" class="form-control" placeholder="No limit" min="1" style="max-width: 140px;" oninput="validateAssignment()">
+            <span style="font-size:0.8rem; color:var(--text-muted);">Leave blank to assign all matching leads</span>
+        </div>
         <button class="btn" onclick="resetFilters()" style="margin-top: 10px; font-size: 0.85rem;">↺ Reset Filters</button>
     </div>
 
@@ -206,7 +211,10 @@ function validateAssignment() {
 
     if (currentMatchCount > 0 && reps.length > 0) {
         btn.disabled = false;
-        btn.textContent = `🚀 Distribute ${currentMatchCount.toLocaleString()} leads across ${reps.length} Rep${reps.length > 1 ? 's' : ''} (Round-Robin)`;
+        const maxPerRep = parseInt(document.getElementById('filter-max-per-rep').value) || null;
+        const total = maxPerRep ? Math.min(currentMatchCount, maxPerRep * reps.length) : currentMatchCount;
+        const perRepNote = maxPerRep ? `, ${maxPerRep} per rep` : '';
+        btn.textContent = `🚀 Assign ${total.toLocaleString()} leads across ${reps.length} Rep${reps.length > 1 ? 's' : ''}${perRepNote}`;
     } else if (reps.length === 0) {
         btn.disabled = true;
         btn.textContent = 'Select at least one rep to enable assignment';
@@ -238,6 +246,7 @@ async function executeAssignment() {
     btn.textContent = '⏳ Assigning leads…';
 
     const minScore = document.getElementById('filter-score').value;
+    const maxPerRep = document.getElementById('filter-max-per-rep').value;
     const payload = {
         source:           document.getElementById('filter-source').value   || null,
         product:          document.getElementById('filter-product').value  || null,
@@ -246,6 +255,7 @@ async function executeAssignment() {
         has_phone:        document.getElementById('filter-phone').value === 'true' ? true : null,
         min_score:        minScore ? parseInt(minScore) : null,
         include_assigned: document.getElementById('filter-reassign').checked,
+        max_per_rep:      maxPerRep ? parseInt(maxPerRep) : null,
         target_rep_ids:   reps
     };
 
@@ -280,6 +290,7 @@ function resetFilters() {
     document.getElementById('filter-phone').value    = '';
     document.getElementById('filter-score').value    = '';
     document.getElementById('filter-reassign').checked = false;
+    document.getElementById('filter-max-per-rep').value = '';
     document.querySelectorAll('.rep-chip').forEach(c => {
         c.querySelector('input').checked = false;
         c.classList.remove('selected');

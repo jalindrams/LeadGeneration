@@ -54,6 +54,7 @@ class BulkAssignCriteria(BaseModel):
     has_phone: Optional[bool] = None
     min_score: Optional[int] = None        # only assign leads at/above this score
     include_assigned: Optional[bool] = False  # True = reassign already-assigned too
+    max_per_rep: Optional[int] = None      # cap: max leads assigned to each rep
     target_rep_ids: List[int]
 
 @router.post("/users/{user_id}/toggle-status")
@@ -129,6 +130,11 @@ def assign_leads_bulk(criteria: BulkAssignCriteria, db: Session = Depends(get_db
         return {"message": "No leads found matching criteria", "assigned_count": 0}
 
     rep_count = len(reps)
+
+    # Apply per-rep cap: slice to max_per_rep * reps so round-robin gives each rep exactly max_per_rep
+    if criteria.max_per_rep and criteria.max_per_rep > 0:
+        leads = leads[:criteria.max_per_rep * rep_count]
+
     for i, lead in enumerate(leads):
         rep = reps[i % rep_count]
         lead.assigned_to = rep.id
@@ -138,8 +144,9 @@ def assign_leads_bulk(criteria: BulkAssignCriteria, db: Session = Depends(get_db
 
     db.commit()
     verb = "Reassigned" if criteria.include_assigned else "Assigned"
+    per_rep_note = f", {criteria.max_per_rep} per rep" if criteria.max_per_rep else ""
     return {
-        "message": f"{verb} {len(leads)} leads across {rep_count} rep(s), highest-score first.",
+        "message": f"{verb} {len(leads)} leads across {rep_count} rep(s){per_rep_note}, highest-score first.",
         "assigned_count": len(leads)
     }
 

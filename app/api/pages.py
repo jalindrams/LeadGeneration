@@ -219,3 +219,19 @@ async def command_deck_page(request: Request, current_user: User = Depends(requi
         "request": request,
         "current_user": current_user
     })
+
+@router.get("/my-calls", response_class=HTMLResponse)
+async def my_calls_page(request: Request, current_user: User = Depends(require_auth)):
+    """Rep's personal call history and outcome stats."""
+    return templates.TemplateResponse("my_calls.html", {
+        "request": request,
+        "current_user": current_user
+    })
+
+@router.get("/admin/calls", response_class=HTMLResponse)
+async def admin_calls_page(request: Request, current_user: User = Depends(require_admin)):
+    """Admin call reports — per-rep summary and full log."""
+    return templates.TemplateResponse("admin_calls.html", {
+        "request": request,
+        "current_user": current_user
+    })

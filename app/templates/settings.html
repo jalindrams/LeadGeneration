@@ -163,10 +163,15 @@
 
 <script>
 let allGroups = [];
+// Tracks the loaded value for each field so we know what actually changed
+const loadedValues = {};
 
 async function loadSettings() {
     const r = await fetch('/api/settings/');
-    if (!r.ok) { document.getElementById('settings-container').innerHTML = '<p style="color:red">Error loading settings</p>'; return; }
+    if (!r.ok) {
+        document.getElementById('settings-container').innerHTML = '<p style="color:red">Error loading settings</p>';
+        return;
+    }
     const d = await r.json();
     allGroups = d.groups;
     renderGroups(d.groups);
@@ -185,30 +190,35 @@ function renderGroups(groups) {
                 </span>
             </div>
             <div class="fields-grid">
-                ${g.keys.map((k, ki) => `
-                <div class="field-row">
-                    <div class="field-label">
-                        ${k.label}
-                        <span class="set-badge ${k.is_set ? 'is-set' : 'not-set'}" id="badge-${gi}-${ki}">
-                            ${k.is_set ? '✓ set' : 'not set'}
-                        </span>
-                    </div>
-                    <div class="field-input-row">
-                        <input
-                            class="field-input"
-                            id="inp-${gi}-${ki}"
-                            data-key="${k.key}"
-                            data-group="${gi}"
-                            data-secret="${k.type === 'secret'}"
-                            type="${k.type === 'secret' ? 'password' : 'text'}"
-                            placeholder="${k.is_set ? '(keep current — leave blank)' : k.placeholder}"
-                            value=""
-                        >
-                        ${k.type === 'secret' ? `<button class="eye-btn" onclick="toggleSecret(${gi},${ki})" title="Show/hide">👁</button>` : ''}
-                    </div>
-                    <div class="field-help">${k.help}</div>
-                </div>
-                `).join('')}
+                ${g.keys.map((k, ki) => {
+                    const displayVal = k.value || '';
+                    const inputId = `inp-${gi}-${ki}`;
+                    // Store original value for change-detection
+                    loadedValues[inputId] = displayVal;
+                    const isSecret = k.type === 'secret';
+                    return `
+                    <div class="field-row">
+                        <div class="field-label">
+                            ${k.label}
+                            <span class="set-badge ${k.is_set ? 'is-set' : 'not-set'}" id="badge-${gi}-${ki}">
+                                ${k.is_set ? '✓ set' : 'not set'}
+                            </span>
+                        </div>
+                        <div class="field-input-row">
+                            <input
+                                class="field-input"
+                                id="${inputId}"
+                                data-key="${k.key}"
+                                data-secret="${isSecret}"
+                                type="${isSecret ? 'password' : 'text'}"
+                                placeholder="${k.placeholder}"
+                                value="${displayVal.replace(/"/g, '&quot;')}"
+                            >
+                            ${isSecret ? `<button class="eye-btn" onclick="toggleSecret('${inputId}')" title="Show/hide">👁</button>` : ''}
+                        </div>
+                        <div class="field-help">${k.help}${isSecret && k.is_set ? ' <em style="color:var(--text-muted)">(masked — edit to change)</em>' : ''}</div>
+                    </div>`;
+                }).join('')}
             </div>
             <div class="group-actions">
                 <button class="btn-save" onclick="saveGroup(${gi})">💾 Save ${g.group}</button>
@@ -220,79 +230,84 @@ function renderGroups(groups) {
     `).join('');
 }
 
-function toggleSecret(gi, ki) {
-    const inp = document.getElementById(`inp-${gi}-${ki}`);
+function toggleSecret(inputId) {
+    const inp = document.getElementById(inputId);
     inp.type = inp.type === 'password' ? 'text' : 'password';
 }
 
 async function saveGroup(gi) {
     const group = allGroups[gi];
     const updates = {};
-    let hasChanges = false;
 
     group.keys.forEach((k, ki) => {
-        const val = document.getElementById(`inp-${gi}-${ki}`).value.trim();
-        if (val !== '') {
-            updates[k.key] = val;
-            hasChanges = true;
+        const inputId = `inp-${gi}-${ki}`;
+        const current = document.getElementById(inputId).value;
+        const original = loadedValues[inputId] || '';
+        // Only send fields that actually changed (prevents re-saving masked secrets unchanged)
+        if (current !== original) {
+            updates[k.key] = current;
         }
     });
 
-    if (!hasChanges) {
-        showStatus(gi, 'err', 'No changes to save');
+    if (Object.keys(updates).length === 0) {
+        showStatus(gi, 'err', 'No changes detected — edit a field to update it');
         return;
     }
 
-    const r = await fetch('/api/settings/', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ updates }),
-    });
-    const d = await r.json();
+    const btn = document.querySelector(`#group-${gi} .btn-save`);
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Saving…';
 
-    if (r.ok) {
-        showStatus(gi, 'ok', `Saved: ${d.saved.join(', ')}`);
-        // Update badges for saved keys
-        group.keys.forEach((k, ki) => {
-            const val = document.getElementById(`inp-${gi}-${ki}`).value.trim();
-            if (val && updates[k.key]) {
-                const badge = document.getElementById(`badge-${gi}-${ki}`);
-                badge.className = 'set-badge is-set';
-                badge.textContent = '✓ set';
-                document.getElementById(`inp-${gi}-${ki}`).value = '';
-                document.getElementById(`inp-${gi}-${ki}`).placeholder = '(keep current — leave blank)';
-            }
+    try {
+        const r = await fetch('/api/settings/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ updates }),
         });
-        document.getElementById('restart-notice').style.display = 'flex';
-    } else {
-        showStatus(gi, 'err', d.detail || 'Error saving');
+        const d = await r.json();
+
+        if (r.ok) {
+            showStatus(gi, 'ok', `✅ Saved ${d.saved.length} setting${d.saved.length !== 1 ? 's' : ''}`);
+            document.getElementById('restart-notice').style.display = 'flex';
+            // Reload to show fresh masked values & update badges
+            await loadSettings();
+        } else {
+            showStatus(gi, 'err', d.detail || 'Error saving');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.textContent = orig;
     }
 }
 
 function showStatus(gi, type, msg) {
     const el = document.getElementById(`status-${gi}`);
+    if (!el) return;
     el.className = `save-status ${type}`;
     el.textContent = msg;
-    setTimeout(() => { el.style.display = 'none'; el.className = 'save-status'; }, 4000);
+    setTimeout(() => { el.style.display = 'none'; el.className = 'save-status'; }, 5000);
 }
 
 async function testWhatsApp() {
+    showStatus(0, 'ok', '⏳ Testing…');
     const r = await fetch('/api/settings/test/whatsapp');
     const d = await r.json();
     if (d.ok) {
-        showStatus(0, 'ok', `Connected — Phone ID: ${d.phone_number_id}`);
+        showStatus(0, 'ok', `✅ Connected — Phone ID: ${d.phone_number_id}`);
     } else {
-        showStatus(0, 'err', d.error || 'Test failed');
+        showStatus(0, 'err', `❌ ${d.error || 'Test failed'}`);
     }
 }
 
 async function testEmail() {
+    showStatus(1, 'ok', '⏳ Connecting to SMTP…');
     const r = await fetch('/api/settings/test/email');
     const d = await r.json();
     if (d.ok) {
-        showStatus(1, 'ok', `SMTP OK — ${d.user} via ${d.host}`);
+        showStatus(1, 'ok', `✅ SMTP OK — ${d.user} via ${d.host}`);
     } else {
-        showStatus(1, 'err', d.error || 'Test failed');
+        showStatus(1, 'err', `❌ ${d.error || 'Test failed'}`);
     }
 }
 

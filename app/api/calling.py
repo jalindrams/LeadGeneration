@@ -16,7 +16,7 @@ from sqlalchemy import func, desc
 from app.database import get_db
 from app.models import Lead, CallLog, User, LeadFeedback, LeadAssignment
 from app.schemas import CallLogCreate, CallLogResponse, CallUpdateRequest, DashboardStats, LeadResponse
-from app.auth import require_auth
+from app.auth import require_auth, require_admin
 
 router = APIRouter(prefix="/api/calling", tags=["Calling"])
 
@@ -176,6 +176,131 @@ def get_follow_ups(db: Session = Depends(get_db)):
     ).all()
     
     return [LeadResponse.model_validate(l) for l in leads]
+
+@router.get("/my-stats")
+def get_my_stats(db: Session = Depends(get_db), current_user: User = Depends(require_auth)):
+    """Call outcome counts for the current rep (or all reps if admin)."""
+    rows = (
+        db.query(CallLog.call_status, func.count(CallLog.id).label("cnt"))
+        .filter(CallLog.called_by == current_user.full_name)
+        .group_by(CallLog.call_status)
+        .all()
+    )
+    status_map = {r.call_status: r.cnt for r in rows}
+    total = sum(status_map.values())
+    return {
+        "total": total,
+        "interested": status_map.get("interested", 0),
+        "not_interested": status_map.get("not_interested", 0),
+        "no_answer": status_map.get("no_answer", 0),
+        "closed": status_map.get("closed", 0),
+        "follow_up": status_map.get("follow_up", 0),
+    }
+
+
+@router.get("/my-calls")
+def get_my_calls(
+    page: int = 1,
+    per_page: int = 50,
+    status_filter: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_auth),
+):
+    """Paginated call history for the current rep."""
+    q = db.query(CallLog).join(Lead, CallLog.lead_id == Lead.id, isouter=True)
+    q = q.filter(CallLog.called_by == current_user.full_name)
+    if status_filter and status_filter != "all":
+        q = q.filter(CallLog.call_status == status_filter)
+
+    total = q.count()
+    logs = q.order_by(desc(CallLog.called_at)).offset((page - 1) * per_page).limit(per_page).all()
+
+    return {
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "calls": [
+            {
+                "id": log.id,
+                "lead_id": str(log.lead_id),
+                "company_name": log.lead.company_name if log.lead else "",
+                "contact_name": log.lead.full_name if log.lead else "",
+                "phone": log.lead.phone if log.lead else "",
+                "call_status": log.call_status,
+                "called_at": log.called_at.isoformat() if log.called_at else None,
+                "called_by": log.called_by,
+                "duration_note": log.duration_note,
+                "remarks": log.remarks,
+                "response_type": log.response_type,
+            }
+            for log in logs
+        ],
+    }
+
+
+@router.get("/admin/rep-summary")
+def get_rep_call_summary(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    """Per-rep call summary — total + breakdown by outcome."""
+    rows = (
+        db.query(CallLog.called_by, CallLog.call_status, func.count(CallLog.id).label("cnt"))
+        .group_by(CallLog.called_by, CallLog.call_status)
+        .all()
+    )
+    # Aggregate in Python
+    rep_map: dict = {}
+    for row in rows:
+        name = row.called_by or "Unknown"
+        if name not in rep_map:
+            rep_map[name] = {"rep_name": name, "total": 0, "interested": 0,
+                             "not_interested": 0, "no_answer": 0, "closed": 0, "follow_up": 0}
+        rep_map[name]["total"] += row.cnt
+        if row.call_status in rep_map[name]:
+            rep_map[name][row.call_status] += row.cnt
+
+    return sorted(rep_map.values(), key=lambda r: r["total"], reverse=True)
+
+
+@router.get("/admin/all-calls")
+def get_all_calls(
+    page: int = 1,
+    per_page: int = 50,
+    rep_name: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Full paginated call log for admin — filter by rep or status."""
+    q = db.query(CallLog).join(Lead, CallLog.lead_id == Lead.id, isouter=True)
+    if rep_name:
+        q = q.filter(CallLog.called_by == rep_name)
+    if status_filter and status_filter != "all":
+        q = q.filter(CallLog.call_status == status_filter)
+
+    total = q.count()
+    logs = q.order_by(desc(CallLog.called_at)).offset((page - 1) * per_page).limit(per_page).all()
+
+    return {
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "calls": [
+            {
+                "id": log.id,
+                "lead_id": str(log.lead_id),
+                "company_name": log.lead.company_name if log.lead else "",
+                "contact_name": log.lead.full_name if log.lead else "",
+                "phone": log.lead.phone if log.lead else "",
+                "call_status": log.call_status,
+                "called_at": log.called_at.isoformat() if log.called_at else None,
+                "called_by": log.called_by,
+                "duration_note": log.duration_note,
+                "remarks": log.remarks,
+                "response_type": log.response_type,
+            }
+            for log in logs
+        ],
+    }
+
 
 @router.post("/import-csv")
 async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
