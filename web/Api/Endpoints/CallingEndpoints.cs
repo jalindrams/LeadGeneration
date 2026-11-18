@@ -56,11 +56,7 @@ public static class CallingEndpoints
                                       .Select(s => Guid.TryParse(s, out var x) ? x : Guid.Empty)
                                       .Where(x => x != Guid.Empty).Take(200).ToList();
             var (id, reason) = await NextFor(db, me, skipIds, product);
-            if (id == null)
-            {
-                id = await ClaimFromPool(db, me, skipIds, product);
-                reason = id == null ? null : "new";
-            }
+            // No auto-assignment: callers only get leads an admin assigned to them.
             var counts = await QueueCounts(db, me, product);
             var start = DateTime.Today;
             var name = user.Name();

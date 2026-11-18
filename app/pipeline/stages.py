@@ -361,17 +361,9 @@ def build_daily_batch(db: Session, product: str = "ecom", target: int = 50,
     picks = db.execute(select(Store).where(Store.product == product, Store.state == "accepted")
                        .order_by(tier_order, Store.score.desc(), Store.accepted_at)
                        .limit(need)).scalars().all()
-    # == True, not .is_(True): "IS 1" is invalid on SQL Server
-    reps = db.execute(select(User).where(User.is_active == True, User.role == "sales_rep")  # noqa: E712
-                      .order_by(User.id)).scalars().all()
-    for i, s in enumerate(picks):
+    # Leads are NOT auto-assigned: an admin assigns them to callers by hand.
+    for s in picks:
         s.state, s.delivered_at = "delivered", datetime.now()
-        if reps and s.lead_id:
-            rep = reps[i % len(reps)]
-            lead = db.get(Lead, s.lead_id)
-            if lead and not lead.assigned_to:
-                lead.assigned_to, lead.assigned_at = rep.id, datetime.now()
-                db.add(LeadAssignment(lead_id=lead.id, assigned_to=rep.id))
     batch.delivered = (batch.delivered or 0) + len(picks)
     if batch.delivered < target:
         backlog = db.execute(select(func.count()).select_from(Store).where(

@@ -83,13 +83,13 @@ public class ApiTests : IClassFixture<ApiFactory>
         Assert.Equal(_f.RepLead.ToString(), n1.GetProperty("leadId").GetString());
         Assert.Equal("new", n1.GetProperty("reason").GetString());
 
-        // Own lead skipped -> the unassigned lead is claimed for this rep
+        // Own lead skipped -> nothing else: unassigned leads are NOT auto-claimed (admin assigns by hand)
         var n2 = await Next(rep, "&skip=" + _f.RepLead);
-        Assert.Equal(_f.AdminLead.ToString(), n2.GetProperty("leadId").GetString());
+        Assert.Equal(JsonValueKind.Null, n2.GetProperty("leadId").ValueKind);
         using (var scope = _f.Services.CreateScope())
-            Assert.Equal(_f.RepId, scope.ServiceProvider.GetRequiredService<AppDb>().Leads.Single(l => l.Id == _f.AdminLead).AssignedTo);
+            Assert.Null(scope.ServiceProvider.GetRequiredService<AppDb>().Leads.Single(l => l.Id == _f.AdminLead).AssignedTo);
 
-        // The other rep can never be handed a lead that is already taken
+        // The other rep is never handed someone else's lead
         var rep2 = await Login("t_rep2");
         var o = await Next(rep2, "&skip=" + _f.OtherLead);
         Assert.Equal(JsonValueKind.Null, o.GetProperty("leadId").ValueKind);
@@ -104,9 +104,9 @@ public class ApiTests : IClassFixture<ApiFactory>
         var ids = results.Select(r => r.GetProperty("leadId")).Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()).ToList();
         using var scope = _f.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDb>();
-        Assert.Single(db.LeadAssignments.Where(x => x.LeadId == _f.AdminLead).ToList());
-        var owner = db.Leads.Single(l => l.Id == _f.AdminLead).AssignedTo;
-        Assert.Contains(owner, new int?[] { _f.RepId, _f.Rep2Id });
+        Assert.Empty(ids);
+        Assert.Empty(db.LeadAssignments.Where(x => x.LeadId == _f.AdminLead).ToList());
+        Assert.Null(db.Leads.Single(l => l.Id == _f.AdminLead).AssignedTo);
     }
 
     [Fact]

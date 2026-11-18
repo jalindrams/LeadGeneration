@@ -127,6 +127,8 @@ Set-Content $bat "@echo off`r`ncd /d $app`r`nset PYTHONIOENCODING=utf-8`r`nset P
 $act = New-ScheduledTaskAction -Execute $bat -WorkingDirectory $app
 $trg = New-ScheduledTaskTrigger -AtStartup
 $set = New-ScheduledTaskSettingsSet -RestartCount 5 -RestartInterval (New-TimeSpan -Minutes 5) -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable
+Stop-ScheduledTask 'LeadEngine Worker' -ErrorAction SilentlyContinue
+Get-Process python -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$root\python\*" } | Stop-Process -Force
 Register-ScheduledTask -TaskName 'LeadEngine Worker' -Action $act -Trigger $trg -Settings $set -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
 Start-ScheduledTask 'LeadEngine Worker'
 

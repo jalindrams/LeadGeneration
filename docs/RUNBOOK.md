@@ -52,8 +52,8 @@ Manual equivalents: `python scripts/run_pipeline.py daily | discover --source X 
 
 Open **Start calling** (`/call`). It shows one lead at a time: due follow-ups first, then new leads by score, then
 no-answer retries (3 hours after the last try, up to 4 tries). Tap the green number to dial, tap what happened (keys 1–0),
-tap a reason, and press **Save & next lead** (Ctrl+Enter). When a caller's own list is empty, the next unassigned lead is
-claimed for them automatically; the claim is atomic, so two callers never get the same lead. A double-tapped save is
+tap a reason, and press **Save & next lead** (Ctrl+Enter). Leads are never auto-assigned: an admin assigns them
+to callers by hand, and a caller only sees leads assigned to them. A double-tapped save is
 logged once. If the network drops, the entry stays on screen until it is saved.
 
 ## 4. What a lead must have to be delivered
