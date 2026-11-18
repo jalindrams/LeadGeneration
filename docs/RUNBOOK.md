@@ -39,7 +39,7 @@ The Python FastAPI app (`app/main.py`, Jinja pages) still works against MS SQL a
 
 | Time | Job |
 |---|---|
-| 05:15 | Discovery from every enabled source |
+| 00:00 | Discovery from every enabled source |
 | 06:40–22:40 hourly | Process backlog: qualify → resolve contacts → accept |
 | 07:30 | Build today's batch of 50, assign round-robin to active sales reps, alert if short |
 | 07:45 | Queue WhatsApp intros for Tier A (queued only; a person sends them from the Outreach page) |

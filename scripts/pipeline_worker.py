@@ -6,8 +6,8 @@ or a server, next to SQL Server). Start it once; it keeps running.
   python scripts/pipeline_worker.py --once     # run the full daily cycle now and exit
 
 Schedule (local time):
-  05:15  discovery from every source (quotas in app/pipeline/runner.py)
-  :40    every hour 06:40-22:40, process the backlog (qualify -> resolve -> accept)
+  00:00  discovery from every source (quotas in app/pipeline/runner.py)
+  :40    every hour 01:40-22:40, process the backlog (qualify -> resolve -> accept)
   07:30  build today's batch of 50 and assign to callers; alert if short
   Sun 21:10  recompute source ranking from call outcomes (throttles weak sources)
   :05    every hour, apply call outcomes (wrong number / do-not-call -> suppression)
@@ -95,8 +95,9 @@ def main():
         return
     sched = BlockingScheduler(job_defaults={"coalesce": True, "max_instances": 1,
                                             "misfire_grace_time": 3600})
-    sched.add_job(job_discover, "cron", hour=5, minute=15, id="discover")
-    sched.add_job(job_process, "cron", hour="6-22", minute=40, id="process")
+    # Discovery at midnight so processed leads are ready for callers at 09:00.
+    sched.add_job(job_discover, "cron", hour=0, minute=0, id="discover")
+    sched.add_job(job_process, "cron", hour="1-22", minute=40, id="process")
     sched.add_job(job_batch, "cron", hour=7, minute=30, id="batch")
     sched.add_job(job_rank, "cron", day_of_week="sun", hour=21, minute=10, id="rank")
     sched.add_job(job_outcomes, "cron", minute=5, id="outcomes")
