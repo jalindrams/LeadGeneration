@@ -20,7 +20,13 @@ $keep = if (Test-Path "$app\.env") { Get-Content "$app\.env" -Raw } else { $null
 robocopy $src $app /E /XD web .git /NFL /NDL /NJH /NJS | Out-Null
 if ($keep) { Set-Content "$app\.env" $keep }
 Invoke-WebRequest "$repo/raw/lead-engine-deploy/api.zip" -OutFile "$tmp\api.zip"
-Expand-Archive "$tmp\api.zip" $site -Force
+Stop-WebAppPool LeadEngine -ErrorAction SilentlyContinue; Start-Sleep 3
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$z = [IO.Compression.ZipFile]::OpenRead("$tmp\api.zip")   # entries use backslashes: normalise them
+foreach ($e in $z.Entries) { $n = $e.FullName -replace '\\', '/'; if ($n.EndsWith('/')) { continue }
+  $t = Join-Path $site $n; New-Item -ItemType Directory -Force (Split-Path $t) | Out-Null
+  [IO.Compression.ZipFileExtensions]::ExtractToFile($e, $t, $true) }
+$z.Dispose()
 
 Write-Host '2/7 python packages'
 & $py -m pip install -q --no-warn-script-location -r "$app\requirements.txt" -r "$app\requirements-scrape.txt"
