@@ -1,8 +1,9 @@
-import { StrictMode, useState, type ReactNode } from 'react'
+import { StrictMode, useEffect, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import './styles.css'
 import { AuthProvider, useAuth } from './auth'
+import { Icon } from './icons'
 import Login from './pages/Login'
 import Command from './pages/Command'
 import Workboard from './pages/Workboard'
@@ -24,14 +25,18 @@ import Outreach from './pages/Outreach'
 import Cadence from './pages/Cadence'
 import Settings from './pages/Settings'
 
-type NavItem = [string, string, boolean?]   // path, label, adminOnly
+type NavItem = [string, string, string, boolean?]   // path, label, icon, adminOnly
 const NAV: [string, NavItem[]][] = [
-  ['Today', [['/', 'Command deck'], ['/call', 'Start calling'], ['/calls', 'My call list'], ['/follow-ups', 'Follow-ups'], ['/dashboard', 'My numbers']]],
-  ['Leads', [['/leads', 'All leads'], ['/import', 'Import CSV']]],
-  ['Shiplystic engine', [['/target', 'Daily target', true], ['/pipeline', 'Store pipeline', true], ['/controls', 'Suppression & spend', true]]],
-  ['Team', [['/admin', 'Overview', true], ['/admin/assign', 'Assign leads', true], ['/admin/users', 'Users', true], ['/review', 'Review queue', true]]],
-  ['Outreach', [['/outreach', 'Outreach log', true], ['/cadence', 'Cadence', true]]],
-  ['System', [['/jobs', 'Workers & scrapers', true], ['/settings', 'Settings', true]]],
+  ['Today', [['/', 'Command deck', 'home'], ['/call', 'Start calling', 'phone'], ['/calls', 'My call list', 'list'], ['/follow-ups', 'Follow-ups', 'clock'], ['/dashboard', 'My numbers', 'chart']]],
+  ['Leads', [['/leads', 'All leads', 'inbox'], ['/import', 'Import CSV', 'upload']]],
+  ['Shiplystic engine', [['/target', 'Daily target', 'target', true], ['/pipeline', 'Store pipeline', 'funnel', true], ['/controls', 'Suppression & spend', 'shield', true]]],
+  ['Team', [['/admin', 'Overview', 'chart', true], ['/admin/assign', 'Assign leads', 'assign', true], ['/admin/users', 'Users', 'users', true], ['/review', 'Review queue', 'list', true]]],
+  ['Outreach', [['/outreach', 'Outreach log', 'mail', true], ['/cadence', 'Cadence', 'repeat', true]]],
+  ['System', [['/jobs', 'Workers & scrapers', 'server', true], ['/settings', 'Settings', 'cog', true]]],
+]
+// phone bottom bar: the five things a caller does all day (centre one is the big call button)
+const TABS: [string, string, string][] = [
+  ['/', 'Home', 'home'], ['/calls', 'My list', 'list'], ['/call', 'Call', 'phone'], ['/follow-ups', 'Follow-ups', 'clock'], ['/dashboard', 'Numbers', 'chart'],
 ]
 
 function Shell({ children }: { children: ReactNode }) {
@@ -39,32 +44,51 @@ function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const loc = useLocation()
   const isAdmin = me?.role === 'admin'
+  useEffect(() => { setOpen(false) }, [loc.pathname])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+  const brand = <div className="brand"><span className="logo" aria-hidden="true">S</span><div>Shiplystic <span>Leads</span></div></div>
   return (
     <div className="shell">
-      <div className="topbar"><b>Shiplystic <span style={{ color: 'var(--accent)' }}>Leads</span></b><button onClick={() => setOpen(!open)} aria-label="Menu">☰</button></div>
-      <aside className={`side ${open ? 'open' : ''}`} onClick={() => setOpen(false)}>
-        <div className="brand">Shiplystic <span>Leads</span></div>
+      <div className="topbar">
+        {brand}
+        <button onClick={() => setOpen(!open)} aria-label="Menu" aria-expanded={open}><Icon name="menu" /></button>
+      </div>
+      <div className={`scrim ${open ? 'open' : ''}`} onClick={() => setOpen(false)} />
+      <aside className={`side ${open ? 'open' : ''}`} aria-label="Main menu">
+        {brand}
         {NAV.map(([group, items]) => {
-          const visible = items.filter(([, , adminOnly]) => !adminOnly || isAdmin)
+          const visible = items.filter(([, , , adminOnly]) => !adminOnly || isAdmin)
           if (!visible.length) return null
           return (
             <div key={group}>
               <div className="nav-group">{group}</div>
               <nav className="nav">
-                {visible.map(([to, label]) => (
-                  <NavLink key={to} to={to} end={to === '/' || to === '/admin'}>{label}</NavLink>
+                {visible.map(([to, label, icon]) => (
+                  <NavLink key={to} to={to} end={to === '/' || to === '/admin'}><Icon name={icon} />{label}</NavLink>
                 ))}
               </nav>
             </div>
           )
         })}
         <div className="userbox">
-          <div>{me?.fullName}</div>
+          <b>{me?.fullName}</b>
           <div>{isAdmin ? 'Admin' : 'Sales rep'}</div>
-          <button style={{ marginTop: 8 }} onClick={logout}>Sign out</button>
+          <button onClick={logout}><Icon name="logout" />Sign out</button>
         </div>
       </aside>
       <main className="main" key={loc.pathname}>{children}</main>
+      <nav className="tabbar" aria-label="Quick navigation">
+        {TABS.map(([to, label, icon]) => (
+          <NavLink key={to} to={to} end={to === '/'} className={to === '/call' ? 'primary-tab' : undefined}>
+            {to === '/call' ? <span className="disc"><Icon name={icon} /></span> : <Icon name={icon} />}
+            {label}
+          </NavLink>
+        ))}
+      </nav>
     </div>
   )
 }
@@ -76,7 +100,7 @@ function AdminOnly({ children }: { children: ReactNode }) {
 
 function App() {
   const { me, loading } = useAuth()
-  if (loading) return <div className="login muted">Loading…</div>
+  if (loading) return <div className="login-plain muted">Loading…</div>
   if (!me) return <Login />
   const A = (el: ReactNode) => <AdminOnly>{el}</AdminOnly>
   return (

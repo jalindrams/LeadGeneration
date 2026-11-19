@@ -28,10 +28,10 @@ export default function AdminDashboard() {
       {data && (
         <div className="card" style={{ marginTop: 14 }}>
           <h2>By product</h2>
-          <table><thead><tr><th>Product</th><th className="num">Leads</th><th className="num">Hot</th><th className="num">Contacted</th><th className="num">Interested</th><th className="num">Interest rate</th></tr></thead>
+          <div className="table-wrap"><table><thead><tr><th>Product</th><th className="num">Leads</th><th className="num">Hot</th><th className="num">Contacted</th><th className="num">Interested</th><th className="num">Interest rate</th></tr></thead>
             <tbody>{data.byProduct.map((p: Json) => (
               <tr key={p.product ?? 'none'}><td>{p.product ?? 'unset'}</td><td className="num">{p.total}</td><td className="num">{p.hot}</td>
-                <td className="num">{p.contacted}</td><td className="num">{p.interested}</td><td className="num">{p.contacted ? pct(p.interested / p.contacted) : '—'}</td></tr>))}</tbody></table>
+                <td className="num">{p.contacted}</td><td className="num">{p.interested}</td><td className="num">{p.contacted ? pct(p.interested / p.contacted) : '—'}</td></tr>))}</tbody></table></div>
         </div>
       )}
       {perf?.length > 0 && (

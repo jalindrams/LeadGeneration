@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { api, fmtDate, type Json } from './api'
+import { Icon } from './icons'
 
 /** Load JSON from the API; returns data, error, loading and a reload function. */
 export function useApi<T = Json>(url: string | null, deps: unknown[] = []) {
@@ -36,12 +37,12 @@ export function Tile({ label, value, sub }: { label: string; value: ReactNode; s
 
 export function Loading({ error, loading }: { error?: string | null; loading?: boolean }) {
   if (error) return <div className="notice error">Could not load: {error}</div>
-  if (loading) return <div className="muted">Loading…</div>
+  if (loading) return <div className="stack" role="status" aria-label="Loading"><div className="skeleton" style={{ width: '60%' }} /><div className="skeleton" /><div className="skeleton" style={{ width: '80%' }} /></div>
   return null
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="notice muted">{children}</div>
+  return <div className="empty"><Icon name="empty" /><div>{children}</div></div>
 }
 
 export function Meter({ value, max, label }: { value: number; max: number; label: string }) {
@@ -88,19 +89,19 @@ export function StatusBadge({ ok, children }: { ok: boolean | null; children: Re
 export function LeadTable({ leads, showRep = false }: { leads: Json[]; showRep?: boolean }) {
   if (!leads?.length) return <Empty>No leads here.</Empty>
   return (
-    <div className="table-wrap"><table>
+    <div className="table-wrap"><table className="lead-table">
       <thead><tr><th>Company</th><th>Phone</th><th>City</th><th>Product</th><th className="num">Score</th><th>Status</th><th>Follow-up</th>{showRep && <th>Rep</th>}</tr></thead>
       <tbody>
         {leads.map(l => (
           <tr key={l.id}>
             <td><Link to={`/leads/${l.id}`}>{l.companyName}</Link>{l.fullName && <div className="small muted">{l.fullName}{l.title ? ` · ${l.title}` : ''}</div>}</td>
-            <td className="mono">{l.phone || '—'}</td>
-            <td>{l.location || '—'}</td>
-            <td>{l.targetProduct || '—'}</td>
-            <td className="num">{l.score ?? 0} <TierBadge tier={l.tier} /></td>
-            <td>{l.callStatus || 'new'}</td>
-            <td>{fmtDate(l.followUpDate)}</td>
-            {showRep && <td>{l.assignedName || <span className="muted">unassigned</span>}</td>}
+            <td className="mono" data-label="Phone">{l.phone || '—'}</td>
+            <td data-label="City">{l.location || '—'}</td>
+            <td data-label="Product">{l.targetProduct || '—'}</td>
+            <td className="num" data-label="Score">{l.score ?? 0} <TierBadge tier={l.tier} /></td>
+            <td data-label="Status">{l.callStatus || 'new'}</td>
+            <td data-label="Follow-up">{fmtDate(l.followUpDate)}</td>
+            {showRep && <td data-label="Rep">{l.assignedName || <span className="muted">unassigned</span>}</td>}
           </tr>
         ))}
       </tbody>
