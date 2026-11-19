@@ -7,11 +7,10 @@ import uuid
 from datetime import datetime, date
 
 from sqlalchemy import (
-    Column, String, Integer, Text, DateTime, Date,
+    Column, Unicode, UnicodeText, Uuid, Integer, DateTime, Date, text,
     ForeignKey, UniqueConstraint, Index, Boolean, Numeric,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -23,26 +22,26 @@ from app.database import Base
 class Lead(Base):
     __tablename__ = "leads"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    first_name = Column(String(100))
-    last_name = Column(String(100))
-    full_name = Column(String(200))
-    title = Column(String(200))  # Job title / designation
-    email = Column(String(255))
-    phone = Column(String(50))
-    company_name = Column(String(300), nullable=False)
-    company_url = Column(String(500))
-    industry = Column(String(200))
-    company_size = Column(String(100))  # e.g. "50-100 employees"
-    location = Column(String(300))
-    source = Column(String(100), nullable=False)  # indiamart, google_maps, etc.
-    gst_number = Column(String(20))  # Indian GST for dedup
-    product_category = Column(String(300))  # What they manufacture
-    turnover = Column(String(200))  # Company turnover
-    target_product = Column(String(30))  # Which Micraft product this lead is for (mes, dms, tms, ...)
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    first_name = Column(Unicode(100))
+    last_name = Column(Unicode(100))
+    full_name = Column(Unicode(200))
+    title = Column(Unicode(200))  # Job title / designation
+    email = Column(Unicode(255))
+    phone = Column(Unicode(50))
+    company_name = Column(Unicode(300), nullable=False)
+    company_url = Column(Unicode(500))
+    industry = Column(Unicode(200))
+    company_size = Column(Unicode(100))  # e.g. "50-100 employees"
+    location = Column(Unicode(300))
+    source = Column(Unicode(100), nullable=False)  # indiamart, google_maps, etc.
+    gst_number = Column(Unicode(20))  # Indian GST for dedup
+    product_category = Column(Unicode(300))  # What they manufacture
+    turnover = Column(Unicode(200))  # Company turnover
+    target_product = Column(Unicode(30))  # Which Micraft product this lead is for (mes, dms, tms, ...)
 
     # Pipeline status
-    status = Column(String(50), default="raw")  # raw, enriched, qualified, pushed, contacted
+    status = Column(Unicode(50), default="raw")  # raw, enriched, qualified, pushed, contacted
     score = Column(Integer, default=0)
 
     # Timestamps
@@ -52,26 +51,26 @@ class Lead(Base):
     # Outreach tracking (populated in later phases)
     first_contacted_at = Column(DateTime)
     last_contacted_at = Column(DateTime)
-    response_status = Column(String(50))  # interested, not_interested, no_response, wrong_contact
+    response_status = Column(Unicode(50))  # interested, not_interested, no_response, wrong_contact
     response_score = Column(Integer, default=0)
     feedback_count = Column(Integer, default=0)
-    outreach_status = Column(String(50), default="pending")
-    last_outreach_channel = Column(String(50))
+    outreach_status = Column(Unicode(50), default="pending")
+    last_outreach_channel = Column(Unicode(50))
     follow_up_count = Column(Integer, default=0)
 
     # CRM reference (Phase 3)
-    hubspot_contact_id = Column(String(100))
+    hubspot_contact_id = Column(Unicode(100))
 
     # Phase 1.5 - Calling System
-    call_status = Column(String(50), default="new")  # new, follow_up, interested, not_interested, closed, no_answer
-    decision_maker = Column(String(200))
-    pain_point = Column(Text)
+    call_status = Column(Unicode(50), default="new")  # new, follow_up, interested, not_interested, closed, no_answer
+    decision_maker = Column(Unicode(200))
+    pain_point = Column(UnicodeText)
     follow_up_date = Column(Date)
-    remarks = Column(Text)
+    remarks = Column(UnicodeText)
     call_count = Column(Integer, default=0)
 
     # Dedup hash
-    dedup_hash = Column(String(64), unique=True)
+    dedup_hash = Column(Unicode(64))
 
     # Phase 1.6 - Multi-User System
     assigned_to = Column(Integer, ForeignKey("users.id"))
@@ -94,6 +93,10 @@ class Lead(Base):
         Index("idx_leads_created", "lead_created_at"),
         Index("idx_leads_follow_up", "follow_up_date"),
         Index("idx_leads_target_product", "target_product"),
+        # unique when present; filtered so SQL Server allows many NULLs
+        Index("uq_leads_dedup_hash", "dedup_hash", unique=True,
+              mssql_where=text("dedup_hash IS NOT NULL"),
+              postgresql_where=text("dedup_hash IS NOT NULL")),
     )
 
     def __repr__(self):
@@ -107,10 +110,10 @@ class ScrapeJob(Base):
     __tablename__ = "scrape_jobs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    source = Column(String(100), nullable=False)
-    search_query = Column(String(500))
-    city = Column(String(100))
-    status = Column(String(50), default="running")  # running, completed, failed, halted
+    source = Column(Unicode(100), nullable=False)
+    search_query = Column(Unicode(500))
+    city = Column(Unicode(100))
+    status = Column(Unicode(50), default="running")  # running, completed, failed, halted
     records_found = Column(Integer, default=0)
     records_stored = Column(Integer, default=0)
     records_duplicate = Column(Integer, default=0)
@@ -119,7 +122,7 @@ class ScrapeJob(Base):
     is_halted = Column(Boolean, default=False)
     started_at = Column(DateTime, default=func.now())
     completed_at = Column(DateTime)
-    error_log = Column(Text)
+    error_log = Column(UnicodeText)
     duration_seconds = Column(Integer)
 
     __table_args__ = (
@@ -138,7 +141,7 @@ class LeadPipelineMetrics(Base):
     __tablename__ = "lead_pipeline_metrics"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    source = Column(String(100), nullable=False)
+    source = Column(Unicode(100), nullable=False)
     date = Column(Date, nullable=False, default=date.today)
     raw_leads = Column(Integer, default=0)
     enriched_leads = Column(Integer, default=0)
@@ -165,9 +168,9 @@ class LeadFeedback(Base):
     __tablename__ = "lead_feedback"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False)
-    status = Column(String(50), nullable=False)  # interested, not_interested, no_response, wrong_contact, converted
-    notes = Column(Text)
+    lead_id = Column(Uuid, ForeignKey("leads.id", ondelete="CASCADE"), nullable=False)
+    status = Column(Unicode(50), nullable=False)  # interested, not_interested, no_response, wrong_contact, converted
+    notes = Column(UnicodeText)
     created_at = Column(DateTime, default=func.now())
 
     lead = relationship("Lead", back_populates="feedback")
@@ -184,12 +187,12 @@ class ManualReviewQueue(Base):
     __tablename__ = "manual_review_queue"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False)
-    reason = Column(String(50), nullable=False)  # missing_email, high_value, incomplete_data, enrichment_failed, fuzzy_dup
-    priority = Column(String(10), nullable=False, default="medium")  # high, medium, low
-    assigned_to = Column(String(100), default="Supritha Patil")
-    status = Column(String(20), default="pending")  # pending, in_progress, resolved, skipped
-    notes = Column(Text)
+    lead_id = Column(Uuid, ForeignKey("leads.id", ondelete="CASCADE"), nullable=False)
+    reason = Column(Unicode(50), nullable=False)  # missing_email, high_value, incomplete_data, enrichment_failed, fuzzy_dup
+    priority = Column(Unicode(10), nullable=False, default="medium")  # high, medium, low
+    assigned_to = Column(Unicode(100), default="Supritha Patil")
+    status = Column(Unicode(20), default="pending")  # pending, in_progress, resolved, skipped
+    notes = Column(UnicodeText)
     created_at = Column(DateTime, default=func.now())
     resolved_at = Column(DateTime)
 
@@ -208,7 +211,7 @@ class SourcePerformance(Base):
     __tablename__ = "source_performance"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    source = Column(String(100), nullable=False)
+    source = Column(Unicode(100), nullable=False)
     period_start = Column(Date, nullable=False)
     period_end = Column(Date, nullable=False)
     total_raw = Column(Integer, default=0)
@@ -221,7 +224,7 @@ class SourcePerformance(Base):
     avg_lead_score = Column(Numeric(5, 2))
     source_score = Column(Numeric(5, 2))
     cost_per_lead = Column(Numeric(10, 2))
-    recommendation = Column(String(20))  # scale, maintain, reduce, kill
+    recommendation = Column(Unicode(20))  # scale, maintain, reduce, kill
     created_at = Column(DateTime, default=func.now())
 
     __table_args__ = (
@@ -235,13 +238,13 @@ class CallLog(Base):
     __tablename__ = "call_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False)
+    lead_id = Column(Uuid, ForeignKey("leads.id", ondelete="CASCADE"), nullable=False)
     called_at = Column(DateTime, default=func.now())
-    duration_note = Column(String(100))  # e.g., "5 mins", "Left voicemail"
-    call_status = Column(String(50), nullable=False)  # new, follow_up, interested, not_interested, closed, no_answer
-    response_type = Column(String(100))
-    remarks = Column(Text)
-    called_by = Column(String(100), default="Sales Rep")
+    duration_note = Column(Unicode(100))  # e.g., "5 mins", "Left voicemail"
+    call_status = Column(Unicode(50), nullable=False)  # new, follow_up, interested, not_interested, closed, no_answer
+    response_type = Column(Unicode(100))
+    remarks = Column(UnicodeText)
+    called_by = Column(Unicode(100), default="Sales Rep")
 
     lead = relationship("Lead", backref="call_logs")
 
@@ -258,10 +261,10 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(100), unique=True, nullable=False)
-    password_hash = Column(String(200), nullable=False)
-    full_name = Column(String(200), nullable=False)
-    role = Column(String(50), default="sales_rep")  # admin, sales_rep
+    username = Column(Unicode(100), unique=True, nullable=False)
+    password_hash = Column(Unicode(200), nullable=False)
+    full_name = Column(Unicode(200), nullable=False)
+    role = Column(Unicode(50), default="sales_rep")  # admin, sales_rep
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=func.now())
 
@@ -276,7 +279,7 @@ class LeadAssignment(Base):
     __tablename__ = "lead_assignments"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False)
+    lead_id = Column(Uuid, ForeignKey("leads.id", ondelete="CASCADE"), nullable=False)
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=False)
     assigned_by = Column(Integer, ForeignKey("users.id"))
     assigned_at = Column(DateTime, default=func.now())
@@ -299,14 +302,14 @@ class OutreachLog(Base):
     __tablename__ = "outreach_log"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    lead_id = Column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"),
+    lead_id = Column(Uuid, ForeignKey("leads.id", ondelete="CASCADE"),
                      nullable=False)
-    channel = Column(String(20))           # whatsapp, email
-    template_key = Column(String(100))     # e.g. calibration_intro
-    message_preview = Column(String(200))  # first 200 chars of message
-    status = Column(String(20), default="queued")  # queued, sent, delivered, read, failed, responded
-    wa_message_id = Column(String(100))    # from Meta API response
-    error = Column(Text)
+    channel = Column(Unicode(20))           # whatsapp, email
+    template_key = Column(Unicode(100))     # e.g. calibration_intro
+    message_preview = Column(Unicode(200))  # first 200 chars of message
+    status = Column(Unicode(20), default="queued")  # queued, sent, delivered, read, failed, responded
+    wa_message_id = Column(Unicode(100))    # from Meta API response
+    error = Column(UnicodeText)
     sent_at = Column(DateTime)
     delivered_at = Column(DateTime)
     read_at = Column(DateTime)

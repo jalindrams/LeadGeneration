@@ -12,6 +12,7 @@ returns False. Counts persist in exports/places_usage.json across runs.
 """
 
 import json
+import os
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -21,7 +22,9 @@ from app.utils.logger import get_logger
 
 log = get_logger("places_budget")
 
-USAGE_FILE = Path(__file__).resolve().parent.parent.parent / "exports" / "places_usage.json"
+import os as _os
+USAGE_FILE = Path(_os.getenv("PLACES_USAGE_FILE") or
+                  Path(__file__).resolve().parent.parent.parent / "exports" / "places_usage.json")
 _lock = threading.Lock()
 
 
@@ -53,6 +56,17 @@ def remaining() -> int:
     return max(0, settings.PLACES_MONTHLY_CALL_CAP - used_this_month())
 
 
+def _paid_overflow(calls: int) -> bool:
+    """Charge the spend ledger for calls beyond the free cap; False when paid use is off."""
+    try:
+        from app.pipeline.paid import ledger
+        cost = float(os.getenv("PLACES_PAID_COST_INR", "2.8"))   # ~$32 per 1,000 Text Search Pro
+        ledger.charge("google_places", calls, cost)
+        return True
+    except Exception:
+        return False
+
+
 def allow(calls: int = 1, kind: str = "call") -> bool:
     """
     Reserve `calls` Places API calls against the monthly cap.
@@ -64,6 +78,12 @@ def allow(calls: int = 1, kind: str = "call") -> bool:
         key = _month_key()
         month = data.setdefault(key, {"total": 0})
         if month["total"] + calls > settings.PLACES_MONTHLY_CALL_CAP:
+            # Paid overflow only if the owner set PAID_GOOGLE_PLACES_CAP_INR (default 0 = never pay)
+            if _paid_overflow(calls):
+                month["paid"] = int(month.get("paid", 0)) + calls
+                month[kind] = int(month.get(kind, 0)) + calls
+                _save(data)
+                return True
             log.warning("places_free_tier_cap_reached",
                         used=month["total"],
                         cap=settings.PLACES_MONTHLY_CALL_CAP,
